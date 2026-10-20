@@ -277,7 +277,7 @@
                                                     <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-nikki-100 text-nikki-600 font-medium">#{{ t }}</span>
                                                 </div>
 
-                                                <!-- 部件图标墙（单击预览大图，双击勾选打卡） -->
+                                                <!-- 部件图标墙 -->
                                                 <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-2 mb-2">
                                                     <div v-for="item in mod.items" :key="item.id" 
                                                         @click="handleItemClick(item)" 
@@ -414,8 +414,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">游戏封面图（点击上传新图片更换）</label>
-                    <input type="file" accept="image/*" @change="e => handleImageUpload(e, url => formGame.cover = url)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">游戏封面图（上传自动轻量化压缩）</label>
+                    <input type="file" accept="image/*" @change="e => handleCoverUpload(e)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
                     <img v-if="formGame.cover" :src="formGame.cover" class="h-32 w-full object-cover rounded-xl mt-2 border border-slate-100 shadow-sm">
                 </div>
             </div>
@@ -480,8 +480,8 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">主宣传KV图</label>
-                    <input type="file" accept="image/*" @change="e => handleImageUpload(e, url => formAct.bannerUrl = url)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">主宣传KV图 (上传自动高清压缩)</label>
+                    <input type="file" accept="image/*" @change="e => handleBannerUpload(e)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
                     <img v-if="formAct.bannerUrl" :src="formAct.bannerUrl" class="h-28 w-full object-cover rounded-xl mt-2 border">
                 </div>
 
@@ -507,7 +507,6 @@
                                         <span class="w-5 h-5 rounded-full bg-nikki-500 text-white text-xs font-bold flex items-center justify-center">{{ mIdx + 1 }}</span>
                                         <span class="text-xs font-black text-nikki-600">【收集模块】</span>
                                         
-                                        <!-- 来源切换组件：卡池 / 累充 / 免费 三选一 -->
                                         <div class="flex items-center bg-white rounded-lg p-0.5 border border-slate-200 text-xs shadow-xs">
                                             <button type="button" @click="mod.source = 'cardPool'" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'cardPool' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">卡池</button>
                                             <button type="button" @click="mod.source = 'topUp'" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'topUp' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">累充</button>
@@ -733,23 +732,32 @@
         <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-white">
             <h3 class="text-lg font-black text-slate-800 mb-2">☁️ GitHub 多端全自动漫游</h3>
             <p class="text-xs text-slate-400 mb-4">通过 GitHub REST API 实现 PC/手机/平板的实时进度漫游，0 隐私泄露。</p>
+            
             <div class="space-y-3">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">GitHub Personal Token (PAT)</label>
                     <input v-model="syncConfig.token" type="password" placeholder="ghp_xxxxxxxxxxxx" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono outline-none focus:border-dream-purple">
+                    <p class="text-[10px] text-slate-400 mt-1">💡 需勾选 <strong>repo</strong> 权限；若报 Bad credentials 请检查是否过期或重新生成。</p>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">仓库全称 (用户名/仓库名)</label>
-                    <input v-model="syncConfig.repo" type="text" placeholder="例如：myname/my-game-timeline" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-dream-purple">
+                    <input v-model="syncConfig.repo" type="text" placeholder="例如：vivianhe98/my-game-timeline" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-dream-purple">
                 </div>
             </div>
+
+            <!-- 状态进度指示器 -->
+            <div v-if="syncStatusText" class="mt-3 py-1.5 px-3 bg-purple-50 text-dream-purple rounded-xl text-xs font-semibold flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-dream-purple animate-ping"></span>
+                <span>{{ syncStatusText }}</span>
+            </div>
+
             <div class="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
-                <button @click="pullFromGitHub(false)" :disabled="syncLoading" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200">
+                <button @click="pullFromGitHub(false)" :disabled="syncLoading" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 disabled:opacity-50">
                     {{ syncLoading ? '拉取中...' : '⬇️ 从云端拉取' }}
                 </button>
                 <div class="flex gap-2">
                     <button @click="modals.sync = false" class="px-3 py-1.5 rounded-full text-xs font-bold text-slate-400">关闭</button>
-                    <button @click="pushToGitHub" :disabled="syncLoading" class="px-5 py-1.5 rounded-full text-xs font-bold bg-dream-purple text-white shadow-md">
+                    <button @click="pushToGitHub" :disabled="syncLoading" class="px-5 py-1.5 rounded-full text-xs font-bold bg-dream-purple text-white shadow-md hover:opacity-90 active:scale-95 disabled:opacity-50 transition">
                         {{ syncLoading ? '同步中...' : '⬆️ 保存并立即推送' }}
                     </button>
                 </div>
@@ -763,9 +771,55 @@
 <script>
 const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
+// 核心优化辅助函数：将大图片通过 Canvas 自适应无损压缩，防止撑爆 LocalStorage 和 GitHub API
+function compressImage(file, maxDimension = 1200, quality = 0.8) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let w = img.width;
+                let h = img.height;
+                if (w > maxDimension || h > maxDimension) {
+                    if (w > h) {
+                        h = Math.round((h * maxDimension) / w);
+                        w = maxDimension;
+                    } else {
+                        w = Math.round((w * maxDimension) / h);
+                        h = maxDimension;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// 核心优化辅助函数：利用 Blob + FileReader 进行流式 Base64 编码，安全承载数十兆的大数据包，不发生内存溢出
+function jsonToBase64(obj) {
+    return new Promise((resolve, reject) => {
+        const jsonStr = JSON.stringify(obj, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result;
+            const base64 = dataUrl.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
 createApp({
     setup() {
-        // 预设 5 款基础游戏卡片（无任何写死的版本与活动数据）
         const defaultGames = [
             { id: 'inikki', name: '无限暖暖', type: 'suit', cover: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80' },
             { id: 'snikki', name: '闪耀暖暖', type: 'suit', cover: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80' },
@@ -774,7 +828,6 @@ createApp({
             { id: 'ymzx', name: '夜幕之下', type: 'card', cover: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80' }
         ];
 
-        // 默认标签池
         const defaultTagsMap = {
             'inikki': ['5星限定', '5星奇迹', '5星联动', '清新', '典雅', '甜美', '帅气', '性感', '四星套'],
             'snikki': ['闪耀套', '非凡套', '累充', '复刻阁'],
@@ -815,6 +868,7 @@ createApp({
             repo: localStorage.getItem('gh_repo') || ''
         });
         const syncLoading = ref(false);
+        const syncStatusText = ref('');
 
         const previewData = ref({ url: '', name: '' });
         const editingImgObj = ref(null);
@@ -870,9 +924,13 @@ createApp({
         }
 
         function persistLocal() {
-            localStorage.setItem('gh_games', JSON.stringify(games.value));
-            localStorage.setItem('gh_activities', JSON.stringify(activities.value));
-            localStorage.setItem('gh_game_tags', JSON.stringify(gameTags.value));
+            try {
+                localStorage.setItem('gh_games', JSON.stringify(games.value));
+                localStorage.setItem('gh_activities', JSON.stringify(activities.value));
+                localStorage.setItem('gh_game_tags', JSON.stringify(gameTags.value));
+            } catch (err) {
+                console.warn('本地 LocalStorage 容量上限，建议立即推送至 GitHub 云端：', err);
+            }
         }
 
         function selectGame(game) {
@@ -926,14 +984,22 @@ createApp({
             mod.collectedItems = mod.items.filter(i => i.owned).length;
         }
 
-        function handleSingleItemImage(e, item) {
+        async function handleSingleItemImage(e, item) {
             const file = e.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = evt => {
-                item.imgUrl = evt.target.result;
-            };
-            reader.readAsDataURL(file);
+            item.imgUrl = await compressImage(file, 400, 0.85);
+        }
+
+        async function handleCoverUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            formGame.value.cover = await compressImage(file, 800, 0.82);
+        }
+
+        async function handleBannerUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            formAct.value.bannerUrl = await compressImage(file, 1200, 0.82);
         }
 
         function addGlobalTag() {
@@ -1031,7 +1097,7 @@ createApp({
                 formAct.value.modules.push({
                     moduleId: 'mod_' + Date.now(),
                     moduleCategory: 'collection',
-                    source: 'cardPool', // cardPool / topUp / free
+                    source: 'cardPool',
                     suitName: '',
                     pulls: 0,
                     tags: [],
@@ -1057,20 +1123,17 @@ createApp({
             refreshIcons();
         }
 
-        function handleMultiImageUpload(e, mod, targetArrayName) {
+        async function handleMultiImageUpload(e, mod, targetArrayName) {
             const files = Array.from(e.target.files);
             if (!files.length) return;
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = evt => {
-                    mod[targetArrayName].push({
-                        id: 'img_' + Date.now() + Math.random().toString(36).substr(2, 5),
-                        url: evt.target.result,
-                        name: ''
-                    });
-                };
-                reader.readAsDataURL(file);
-            });
+            for (const file of files) {
+                const compressedUrl = await compressImage(file, 1280, 0.8);
+                mod[targetArrayName].push({
+                    id: 'img_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                    url: compressedUrl,
+                    name: ''
+                });
+            }
         }
 
         function moveImage(mod, fromArray, toArray, index) {
@@ -1110,7 +1173,7 @@ createApp({
                 const startY = (img.height - targetH) / 2;
 
                 ctx.drawImage(img, startX, startY, targetW, targetH, 0, 0, targetW, targetH);
-                editingImgObj.value.url = canvas.toDataURL('image/jpeg', 0.9);
+                editingImgObj.value.url = canvas.toDataURL('image/jpeg', 0.85);
                 modals.value.cropper = false;
             };
             img.src = editingImgObj.value.url;
@@ -1119,14 +1182,6 @@ createApp({
         function previewFullImage(url, name) {
             previewData.value = { url, name };
             modals.value.preview = true;
-        }
-
-        function handleImageUpload(e, callback) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = evt => callback(evt.target.result);
-            reader.readAsDataURL(file);
         }
 
         function setPresetGrid(mod, cols, rows) {
@@ -1213,7 +1268,7 @@ createApp({
                         0, 0, 140, 140
                     );
 
-                    const iconDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                    const iconDataUrl = canvas.toDataURL('image/jpeg', 0.85);
                     const currentIdx = count;
 
                     const itemObj = {
@@ -1281,11 +1336,14 @@ createApp({
             refreshIcons();
         }
 
+        // ================= 深度优化后的 GitHub 推送逻辑 =================
         async function pushToGitHub() {
-            const { token, repo } = syncConfig.value;
+            const token = (syncConfig.value.token || '').trim();
+            const repo = (syncConfig.value.repo || '').trim();
             if (!token || !repo) return alert('请填写 GitHub PAT Token 和仓库名称！');
 
             syncLoading.value = true;
+            syncStatusText.value = '正在核对云端版本状态...';
             localStorage.setItem('gh_token', token);
             localStorage.setItem('gh_repo', repo);
 
@@ -1295,22 +1353,36 @@ createApp({
                 
                 let sha = '';
                 const getRes = await fetch(url, { 
-                    headers: { 'Authorization': `token ${token}` },
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
                     cache: 'no-store'
                 });
-                if (getRes.ok) {
+
+                if (getRes.status === 401) {
+                    throw new Error('Token 无效或已过期 (Bad credentials)！请核对 Token 是否已勾选 repo 权限。');
+                } else if (getRes.ok) {
                     const existing = await getRes.json();
                     sha = existing.sha;
                 }
 
+                syncStatusText.value = '正在打包并优化编码大数据包...';
                 const payload = { games: games.value, activities: activities.value, gameTags: gameTags.value };
-                const contentEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+                
+                // 使用原生异步流转码，解决大图片/大字符串导致的前端爆栈闪退
+                const contentEncoded = await jsonToBase64(payload);
 
+                syncStatusText.value = '正在极速同步至 GitHub 仓库...';
                 const putRes = await fetch(url, {
                     method: 'PUT',
-                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Authorization': `Bearer ${token}`, 
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json' 
+                    },
                     body: JSON.stringify({
-                        message: 'Sync gamer timeline data',
+                        message: 'Sync gamer timeline data: ' + new Date().toLocaleString(),
                         content: contentEncoded,
                         sha: sha || undefined
                     })
@@ -1320,38 +1392,54 @@ createApp({
                     alert('🎉 成功推送到 GitHub 仓库！所有设备均已同步最新数据');
                     modals.value.sync = false;
                 } else {
-                    const err = await putRes.json();
-                    alert('推送失败: ' + err.message);
+                    const err = await putRes.json().catch(() => ({}));
+                    if (putRes.status === 401) {
+                        throw new Error('Token 凭据校验失败 (Bad credentials)。请检查 Token 是否已失效或输入包含隐藏空格。');
+                    } else if (putRes.status === 404) {
+                        throw new Error('仓库未找到或无权访问。请确认仓库路径是否填写正确为 "用户名/仓库名"。');
+                    } else if (putRes.status === 409) {
+                        throw new Error('云端版本出现冲突（远端有更新版本）。建议先点击【从云端拉取】后再推送！');
+                    } else {
+                        throw new Error(err.message || `推送失败 (HTTP ${putRes.status})`);
+                    }
                 }
             } catch (err) {
-                alert('网络异常: ' + err.message);
+                alert('推送失败: ' + err.message);
             } finally {
                 syncLoading.value = false;
+                syncStatusText.value = '';
             }
         }
 
+        // ================= 深度优化后的 GitHub 拉取逻辑 =================
         async function pullFromGitHub(silent = false) {
-            const { token, repo } = syncConfig.value;
+            const token = (syncConfig.value.token || '').trim();
+            const repo = (syncConfig.value.repo || '').trim();
             if (!token || !repo) {
                 if (!silent) alert('请填写 GitHub PAT Token 和仓库名称！');
                 return;
             }
 
-            if (!silent) syncLoading.value = true;
+            if (!silent) {
+                syncLoading.value = true;
+                syncStatusText.value = '正在从云端拉取全量数据...';
+            }
             try {
                 const url = `https://api.github.com/repos/${repo}/contents/game_timeline_data.json`;
                 
-                // 核心修复 1：使用 raw+json 请求头，规避 GitHub API 超过 1MB 时 content 返回空的问题
-                // 核心修复 2：设置 cache: 'no-store'，防止代理缓存 304 导致数据不更新
+                // 关键点：Accept 使用 raw+json 突破 1MB 大文件限制；cache: 'no-store' 解决 304 缓存不刷新
                 const res = await fetch(url, { 
                     headers: { 
-                        'Authorization': `token ${token}`,
+                        'Authorization': `Bearer ${token}`,
                         'Accept': 'application/vnd.github.raw+json'
                     },
                     cache: 'no-store'
                 });
 
                 if (!res.ok) {
+                    if (res.status === 401) {
+                        throw new Error('Token 无效或已过期 (Bad credentials)！');
+                    }
                     if (res.status === 404) {
                         if (!silent) alert('云端暂未找到数据文件，请先点击【保存并立即推送】创建初次备份！');
                         return;
@@ -1368,20 +1456,16 @@ createApp({
                     throw new Error('解析云端 JSON 失败: ' + e.message);
                 }
 
-                // 分支 1：raw+json 直接返回了仓库的完整业务数据
+                // 兼容 Raw JSON / 包装 JSON / Git Blob 回退三种场景
                 if (data && (data.games || data.activities || data.gameTags)) {
                     parsed = data;
-                } 
-                // 分支 2：小于 1MB 时返回了带 content 的元数据对象
-                else if (data && data.content) {
+                } else if (data && data.content) {
                     const rawJson = decodeURIComponent(escape(atob(data.content.replace(/\s/g, ''))));
                     parsed = JSON.parse(rawJson);
-                } 
-                // 分支 3：被网关/加速器剥离了 raw 请求头时，利用 git_url (Git Blob API) 进行二次兜底
-                else if (data && data.git_url) {
+                } else if (data && data.git_url) {
                     const blobRes = await fetch(data.git_url, {
                         headers: {
-                            'Authorization': `token ${token}`,
+                            'Authorization': `Bearer ${token}`,
                             'Accept': 'application/vnd.github.raw'
                         },
                         cache: 'no-store'
@@ -1389,7 +1473,7 @@ createApp({
                     if (blobRes.ok) {
                         parsed = await blobRes.json();
                     } else {
-                        throw new Error('通过 Blob 接口读取大文件失败');
+                        throw new Error('通过 Git Blob 接口获取大文件失败');
                     }
                 } else {
                     throw new Error('云端数据格式不符合预期');
@@ -1400,7 +1484,6 @@ createApp({
                     if (parsed.activities) activities.value = parsed.activities;
                     if (parsed.gameTags) gameTags.value = parsed.gameTags;
 
-                    // 若当前正处于某游戏的详情页，同步更新选中的游戏引用，防止视图未刷新
                     if (activeGame.value) {
                         activeGame.value = games.value.find(g => g.id === activeGame.value.id) || activeGame.value;
                     }
@@ -1415,7 +1498,10 @@ createApp({
             } catch (err) {
                 if (!silent) alert('拉取失败: ' + err.message);
             } finally {
-                if (!silent) syncLoading.value = false;
+                if (!silent) {
+                    syncLoading.value = false;
+                    syncStatusText.value = '';
+                }
                 refreshIcons();
             }
         }
@@ -1428,7 +1514,6 @@ createApp({
             window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768; });
             refreshIcons();
 
-            // 智能特性：打开网页时，若已配置过 Token，自动静默从云端拉取最新数据
             if (syncConfig.value.token && syncConfig.value.repo) {
                 pullFromGitHub(true);
             }
@@ -1436,13 +1521,13 @@ createApp({
 
         return {
             currentView, activeGame, games, activities, gameTags, timelineLayout, effectiveLayout, modals,
-            newTagInput, currentGlobalTags, formGame, formAct, syncConfig, syncLoading, previewData,
+            newTagInput, currentGlobalTags, formGame, formAct, syncConfig, syncLoading, syncStatusText, previewData,
             editingImgObj, currentRatio, cropRatios, currentBackgroundUrl, currentActivities, totalStats,
             getActivityStats, selectGame, switchView, toggleTimelineLayout, addGlobalTag, removeGlobalTag,
             toggleModTag, openCreateModal, openEditGameModal, openEditActivityModal, addSubModule, toggleItemOwned, handleItemClick,
-            addSingleItem, removeSingleItem, handleSingleItemImage,
+            addSingleItem, removeSingleItem, handleSingleItemImage, handleCoverUpload, handleBannerUpload,
             handleMultiImageUpload, moveImage, openCropper, setCropRatio, applyCropAndOverwrite,
-            previewFullImage, handleImageUpload, handleCropUpload, reCrop, setPresetGrid, saveGame, saveActivity,
+            previewFullImage, handleCropUpload, reCrop, setPresetGrid, saveGame, saveActivity,
             pushToGitHub, pullFromGitHub
         };
     }
