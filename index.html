@@ -744,7 +744,7 @@
                 </div>
             </div>
             <div class="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
-                <button @click="pullFromGitHub" :disabled="syncLoading" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200">
+                <button @click="pullFromGitHub(false)" :disabled="syncLoading" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200">
                     {{ syncLoading ? '拉取中...' : '⬇️ 从云端拉取' }}
                 </button>
                 <div class="flex gap-2">
@@ -783,7 +783,6 @@ createApp({
             'ymzx': ['限定卡面', '主线卡', '充值']
         };
 
-        // 数据完全来源于本地缓存或云端，代码中不再包含臃肿的静态版本
         const currentView = ref('home');
         const activeGame = ref(null);
         const games = ref(JSON.parse(localStorage.getItem('gh_games')) || defaultGames);
@@ -1295,7 +1294,10 @@ createApp({
                 const url = `https://api.github.com/repos/${repo}/contents/${path}`;
                 
                 let sha = '';
-                const getRes = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
+                const getRes = await fetch(url, { 
+                    headers: { 'Authorization': `token ${token}` },
+                    cache: 'no-store'
+                });
                 if (getRes.ok) {
                     const existing = await getRes.json();
                     sha = existing.sha;
@@ -1338,23 +1340,77 @@ createApp({
             if (!silent) syncLoading.value = true;
             try {
                 const url = `https://api.github.com/repos/${repo}/contents/game_timeline_data.json`;
-                const res = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
-                if (res.ok) {
-                    const data = await res.json();
-                    const rawJson = decodeURIComponent(escape(atob(data.content)));
-                    const parsed = JSON.parse(rawJson);
+                
+                // 核心修复 1：使用 raw+json 请求头，规避 GitHub API 超过 1MB 时 content 返回空的问题
+                // 核心修复 2：设置 cache: 'no-store'，防止代理缓存 304 导致数据不更新
+                const res = await fetch(url, { 
+                    headers: { 
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.raw+json'
+                    },
+                    cache: 'no-store'
+                });
 
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        if (!silent) alert('云端暂未找到数据文件，请先点击【保存并立即推送】创建初次备份！');
+                        return;
+                    }
+                    throw new Error(`请求云端失败 (HTTP ${res.status})`);
+                }
+
+                const text = await res.text();
+                let parsed = null;
+                let data = null;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('解析云端 JSON 失败: ' + e.message);
+                }
+
+                // 分支 1：raw+json 直接返回了仓库的完整业务数据
+                if (data && (data.games || data.activities || data.gameTags)) {
+                    parsed = data;
+                } 
+                // 分支 2：小于 1MB 时返回了带 content 的元数据对象
+                else if (data && data.content) {
+                    const rawJson = decodeURIComponent(escape(atob(data.content.replace(/\s/g, ''))));
+                    parsed = JSON.parse(rawJson);
+                } 
+                // 分支 3：被网关/加速器剥离了 raw 请求头时，利用 git_url (Git Blob API) 进行二次兜底
+                else if (data && data.git_url) {
+                    const blobRes = await fetch(data.git_url, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.raw'
+                        },
+                        cache: 'no-store'
+                    });
+                    if (blobRes.ok) {
+                        parsed = await blobRes.json();
+                    } else {
+                        throw new Error('通过 Blob 接口读取大文件失败');
+                    }
+                } else {
+                    throw new Error('云端数据格式不符合预期');
+                }
+
+                if (parsed) {
                     if (parsed.games) games.value = parsed.games;
                     if (parsed.activities) activities.value = parsed.activities;
                     if (parsed.gameTags) gameTags.value = parsed.gameTags;
+
+                    // 若当前正处于某游戏的详情页，同步更新选中的游戏引用，防止视图未刷新
+                    if (activeGame.value) {
+                        activeGame.value = games.value.find(g => g.id === activeGame.value.id) || activeGame.value;
+                    }
+
                     persistLocal();
 
                     if (!silent) {
                         alert('⬇️ 数据已成功从云端同步到当前设备！');
                         modals.value.sync = false;
                     }
-                } else {
-                    if (!silent) alert('云端暂无数据文件或读取失败！');
                 }
             } catch (err) {
                 if (!silent) alert('拉取失败: ' + err.message);
@@ -1372,7 +1428,7 @@ createApp({
             window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768; });
             refreshIcons();
 
-            // 智能特性：打开网页时，若已配置过 Token，自动静默从云端拉取最新数据（确保多端漫游体验极致无缝）
+            // 智能特性：打开网页时，若已配置过 Token，自动静默从云端拉取最新数据
             if (syncConfig.value.token && syncConfig.value.repo) {
                 pullFromGitHub(true);
             }
