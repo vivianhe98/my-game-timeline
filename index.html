@@ -130,25 +130,40 @@
     <!-- 主体内容 -->
     <main class="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 py-6 flex flex-col">
 
-        <!-- ================= 视图 1：首页 游戏选择 ================= -->
+        <!-- ================= 视图 1：首页 游戏选择（支持直接换图） ================= -->
         <div v-if="currentView === 'home'" class="flex-1 flex flex-col justify-center">
             <div class="text-center max-w-xl mx-auto mb-10 mt-4">
                 <h2 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight mb-2">选择要回顾的游戏档案</h2>
-                <p class="text-sm text-slate-500">收集进度、卡面图鉴与剧情名场面多端同步漫游</p>
+                <p class="text-sm text-slate-500">收集进度、卡面图鉴与剧情名场面多端同步漫游 · 悬停可点击左上角✏️更换封面</p>
             </div>
 
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
                 <div v-for="game in games" :key="game.id" @click="selectGame(game)"
                     class="group relative bg-white/70 backdrop-blur-md rounded-2xl overflow-hidden border border-white/80 shadow-glass hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 cursor-pointer flex flex-col">
+                    
                     <div class="aspect-[3/4] w-full overflow-hidden bg-slate-100 relative">
                         <img :src="game.cover" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                        
+                        <!-- 更换封面/编辑游戏图标按钮 -->
+                        <button @click.stop="openEditGameModal(game)" 
+                            title="更换封面/编辑游戏" 
+                            class="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-white/85 hover:bg-white text-slate-700 backdrop-blur shadow-sm flex items-center justify-center opacity-85 hover:opacity-100 transition z-10 hover:scale-110 active:scale-95">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5 text-dream-purple"></i>
+                        </button>
+
                         <span class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/50 backdrop-blur text-white">
                             {{ game.type === 'suit' ? '换装收集' : '卡面收集' }}
                         </span>
                     </div>
-                    <div class="p-3 text-center bg-white/80">
-                        <h3 class="font-bold text-sm text-slate-800 group-hover:text-nikki-500 transition">{{ game.name }}</h3>
-                        <p class="text-[11px] text-slate-400 mt-0.5">已收录 {{ (activities[game.id] || []).length }} 个版本</p>
+
+                    <div class="p-3 text-center bg-white/80 flex items-center justify-between px-4">
+                        <div class="text-left">
+                            <h3 class="font-bold text-sm text-slate-800 group-hover:text-nikki-500 transition">{{ game.name }}</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">已收录 {{ (activities[game.id] || []).length }} 个版本</p>
+                        </div>
+                        <button @click.stop="openEditGameModal(game)" class="text-[11px] font-bold text-dream-purple hover:underline">
+                            换图
+                        </button>
                     </div>
                 </div>
 
@@ -204,7 +219,7 @@
                 <p class="text-sm font-medium">该游戏暂无活动记录，点击右上角【+ 新增版本活动】开始记录！</p>
             </div>
 
-            <!-- ================= 排版 A：竖向鱼骨轴 ================= -->
+            <!-- 排版 A：竖向鱼骨轴 -->
             <div v-else-if="effectiveLayout === 'vertical'" class="relative max-w-4xl mx-auto w-full py-6">
                 <div class="absolute left-4 md:left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-nikki-400 via-dream-purple to-slate-200 rounded-full transform md:-translate-x-1/2 shadow-glow"></div>
 
@@ -242,7 +257,6 @@
                                     <div v-show="act.isExpanded" class="pt-3 border-t border-slate-100 flex flex-col gap-3">
                                         <div v-for="mod in act.modules" :key="mod.moduleId" class="bg-slate-50/90 rounded-xl p-3 border border-slate-200/70">
                                             
-                                            <!-- 【类型 A：收集子模块】 -->
                                             <template v-if="mod.moduleCategory === 'collection'">
                                                 <div class="flex items-center justify-between mb-2">
                                                     <div class="flex items-center gap-1.5 flex-wrap">
@@ -259,7 +273,6 @@
                                                     <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-nikki-100 text-nikki-600 font-medium">#{{ t }}</span>
                                                 </div>
 
-                                                <!-- 部件图标墙（单击预览大图，双击勾选打卡） -->
                                                 <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-2 mb-2">
                                                     <div v-for="item in mod.items" :key="item.id" 
                                                         @click="handleItemClick(item)" 
@@ -285,7 +298,6 @@
                                                 </div>
                                             </template>
 
-                                            <!-- 【类型 B：剧情子模块】 -->
                                             <template v-else>
                                                 <div class="flex items-center justify-between mb-2">
                                                     <div class="flex items-center gap-1.5">
@@ -340,7 +352,7 @@
                 </div>
             </div>
 
-            <!-- ================= 排版 B：横向滚动卷轴 ================= -->
+            <!-- 排版 B：横向滚动卷轴 -->
             <div v-else class="flex-1 overflow-x-auto no-scrollbar py-12 relative flex items-center">
                 <div class="absolute left-0 right-0 top-1/2 h-1 bg-gradient-to-r from-nikki-400 via-dream-purple to-slate-200 transform -translate-y-1/2 shadow-glow min-w-[1200px]"></div>
 
@@ -379,14 +391,14 @@
         </div>
     </main>
 
-    <!-- ================= 弹窗 1：新增游戏 ================= -->
+    <!-- ================= 弹窗 1：新增/编辑游戏档案（更换封面） ================= -->
     <div v-if="modals.addGame" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-white">
-            <h3 class="text-lg font-black text-slate-800 mb-4">新增游戏档案</h3>
+            <h3 class="text-lg font-black text-slate-800 mb-4">{{ formGame.id ? '编辑游戏封面与信息' : '新增游戏档案' }}</h3>
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">游戏名称</label>
-                    <input v-model="formGame.name" type="text" placeholder="例如：崩坏：星穹铁道" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-nikki-500">
+                    <input v-model="formGame.name" type="text" placeholder="例如：无限暖暖" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-nikki-500">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">收集主类型</label>
@@ -396,14 +408,16 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">游戏封面图</label>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">游戏封面图（点击上传新图片更换）</label>
                     <input type="file" accept="image/*" @change="e => handleImageUpload(e, url => formGame.cover = url)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
-                    <img v-if="formGame.cover" :src="formGame.cover" class="h-24 w-full object-cover rounded-xl mt-2 border border-slate-100">
+                    <img v-if="formGame.cover" :src="formGame.cover" class="h-32 w-full object-cover rounded-xl mt-2 border border-slate-100 shadow-sm">
                 </div>
             </div>
             <div class="flex justify-end gap-2 mt-6">
                 <button @click="modals.addGame = false" class="px-4 py-2 rounded-full text-xs font-bold text-slate-500 hover:bg-slate-100">取消</button>
-                <button @click="saveGame" class="px-5 py-2 rounded-full text-xs font-bold bg-nikki-500 text-white shadow-glow">保存创建</button>
+                <button @click="saveGame" class="px-5 py-2 rounded-full text-xs font-bold bg-nikki-500 text-white shadow-glow">
+                    {{ formGame.id ? '保存修改' : '保存创建' }}
+                </button>
             </div>
         </div>
     </div>
@@ -435,7 +449,7 @@
         </div>
     </div>
 
-    <!-- ================= 弹窗 3：大活动编辑/新增 (支持单个部件增删) ================= -->
+    <!-- ================= 弹窗 3：大活动编辑/新增 ================= -->
     <div v-if="modals.editActivity" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-white max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
@@ -514,7 +528,6 @@
                                     </div>
                                 </div>
 
-                                <!-- 智能切图组件 -->
                                 <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
                                     <div class="flex items-center justify-between mb-2">
                                         <span class="text-xs font-bold text-slate-700">🖼️ 上传套装截图（自动自适应切图 + 名字提取）</span>
@@ -544,7 +557,6 @@
                                         </div>
                                     </div>
 
-                                    <!-- 部件管理头栏（支持手动添加单个部件） -->
                                     <div class="flex items-center justify-between pt-2 pb-1 border-t border-slate-100">
                                         <span class="text-[11px] font-bold text-slate-600">部件列表 (当前共 {{ mod.items?.length || 0 }} 件)：</span>
                                         <button type="button" @click="addSingleItem(mod)" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-nikki-100 text-nikki-600 hover:bg-nikki-200 flex items-center gap-1">
@@ -552,18 +564,15 @@
                                         </button>
                                     </div>
 
-                                    <!-- 部件列表网格（支持编辑名称、换图、删除单个部件） -->
                                     <div v-if="mod.items && mod.items.length" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 pt-1">
                                         <div v-for="(item, itemIdx) in mod.items" :key="item.id" class="flex flex-col items-center bg-slate-50 p-1.5 rounded-xl border border-slate-200/60 relative group">
                                             
-                                            <!-- 单个部件右上角删除按钮 -->
                                             <button type="button" @click="removeSingleItem(mod, itemIdx)" 
                                                 title="删除该部件" 
                                                 class="absolute top-1 right-1 w-4 h-4 rounded-full bg-slate-200 hover:bg-rose-500 hover:text-white text-slate-500 text-[10px] font-bold flex items-center justify-center z-10 transition">
                                                 ×
                                             </button>
 
-                                            <!-- 部件图（点击切换拥有状态，双击提示） -->
                                             <div class="w-12 h-12 rounded-lg border-2 overflow-hidden relative mb-1 cursor-pointer"
                                                 :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200' : 'border-slate-200 opacity-60'"
                                                 @click="item.owned = !item.owned"
@@ -573,13 +582,11 @@
                                                 <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-0.5 font-bold">✓</div>
                                             </div>
 
-                                            <!-- 单独上传/更换该部件图片 -->
                                             <label class="text-[9px] text-dream-purple hover:underline cursor-pointer mb-1">
                                                 更换图片
                                                 <input type="file" accept="image/*" @change="e => handleSingleItemImage(e, item)" class="hidden">
                                             </label>
 
-                                            <!-- 部件名称输入框 -->
                                             <input v-model="item.name" type="text" placeholder="部件名(空)" class="w-full px-1 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-nikki-500">
                                         </div>
                                     </div>
@@ -1103,8 +1110,7 @@ createApp({
 
         const defaultActivities = { 'inikki': inikkiOfficialActivities };
 
-        // 数据版本标识升级
-        const DATA_VERSION_KEY = 'gh_data_version_inikki_v5_item_management';
+        const DATA_VERSION_KEY = 'gh_data_version_inikki_v6_edit_cover';
         if (!localStorage.getItem(DATA_VERSION_KEY)) {
             localStorage.setItem('gh_activities', JSON.stringify(defaultActivities));
             localStorage.setItem('gh_games', JSON.stringify(defaultGames));
@@ -1137,7 +1143,7 @@ createApp({
             return gameTags.value[activeGame.value.id] || [];
         });
 
-        const formGame = ref({ name: '', type: 'suit', cover: '' });
+        const formGame = ref({ id: '', name: '', type: 'suit', cover: '' });
         const formAct = ref({ id: '', title: '', startDate: '', endDate: '', bannerUrl: '', note: '', modules: [] });
         const syncConfig = ref({
             token: localStorage.getItem('gh_token') || '',
@@ -1237,7 +1243,6 @@ createApp({
             persistLocal();
         }
 
-        // ================= 单个部件的管理（新增 / 删除 / 单独换图） =================
         function addSingleItem(mod) {
             if (!mod.items) mod.items = [];
             const newId = mod.items.length > 0 ? (Math.max(...mod.items.map(i => i.id || 0)) + 1) : 1;
@@ -1265,7 +1270,6 @@ createApp({
             };
             reader.readAsDataURL(file);
         }
-        // =========================================================================
 
         function addGlobalTag() {
             const tag = newTagInput.value.trim();
@@ -1294,11 +1298,50 @@ createApp({
 
         function openCreateModal() {
             if (currentView.value === 'home') {
-                formGame.value = { name: '', type: 'suit', cover: '' };
+                formGame.value = { id: '', name: '', type: 'suit', cover: '' };
                 modals.value.addGame = true;
             } else {
                 openEditActivityModal();
             }
+            refreshIcons();
+        }
+
+        // 打开编辑游戏弹窗（更换封面）
+        function openEditGameModal(game) {
+            formGame.value = {
+                id: game.id,
+                name: game.name,
+                type: game.type,
+                cover: game.cover
+            };
+            modals.value.addGame = true;
+            refreshIcons();
+        }
+
+        function saveGame() {
+            if (!formGame.value.name) return alert('请输入游戏名称！');
+            
+            if (formGame.value.id) {
+                // 编辑已有游戏封面
+                const g = games.value.find(item => item.id === formGame.value.id);
+                if (g) {
+                    g.name = formGame.value.name;
+                    g.type = formGame.value.type;
+                    if (formGame.value.cover) g.cover = formGame.value.cover;
+                }
+            } else {
+                // 新建游戏
+                const gid = 'g_' + Date.now();
+                games.value.push({
+                    id: gid,
+                    name: formGame.value.name,
+                    type: formGame.value.type,
+                    cover: formGame.value.cover || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80'
+                });
+                gameTags.value[gid] = ['常驻', '限定', '卡池'];
+            }
+            persistLocal();
+            modals.value.addGame = false;
             refreshIcons();
         }
 
@@ -1547,21 +1590,6 @@ createApp({
             mod.totalItems = newItems.length;
         }
 
-        function saveGame() {
-            if (!formGame.value.name) return alert('请输入游戏名称！');
-            const gid = 'g_' + Date.now();
-            games.value.push({
-                id: gid,
-                name: formGame.value.name,
-                type: formGame.value.type,
-                cover: formGame.value.cover || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80'
-            });
-            gameTags.value[gid] = ['常驻', '限定', '卡池'];
-            persistLocal();
-            modals.value.addGame = false;
-            refreshIcons();
-        }
-
         function saveActivity() {
             if (!formAct.value.title) return alert('请输入活动标题！');
             const gameId = activeGame.value.id;
@@ -1682,7 +1710,7 @@ createApp({
             newTagInput, currentGlobalTags, formGame, formAct, syncConfig, syncLoading, previewData,
             editingImgObj, currentRatio, cropRatios, currentBackgroundUrl, currentActivities, totalStats,
             getActivityStats, selectGame, switchView, toggleTimelineLayout, addGlobalTag, removeGlobalTag,
-            toggleModTag, openCreateModal, openEditActivityModal, addSubModule, toggleItemOwned, handleItemClick,
+            toggleModTag, openCreateModal, openEditGameModal, openEditActivityModal, addSubModule, toggleItemOwned, handleItemClick,
             addSingleItem, removeSingleItem, handleSingleItemImage,
             handleMultiImageUpload, moveImage, openCropper, setCropRatio, applyCropAndOverwrite,
             previewFullImage, handleImageUpload, handleCropUpload, reCrop, setPresetGrid, saveGame, saveActivity,
