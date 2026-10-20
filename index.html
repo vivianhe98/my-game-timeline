@@ -164,7 +164,6 @@
 
         <!-- ================= 视图 2：游戏详情 鱼骨时间轴 ================= -->
         <div v-else class="flex-1 flex flex-col">
-            <!-- 顶部汇总面板 -->
             <div class="bg-white/70 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/80 shadow-glass mb-8 flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
                     <img :src="activeGame.cover" class="w-12 h-12 rounded-xl object-cover shadow-sm border border-white" />
@@ -260,7 +259,7 @@
                                                     <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-nikki-100 text-nikki-600 font-medium">#{{ t }}</span>
                                                 </div>
 
-                                                <!-- 部件图标墙（单击预览大图，双击勾选） -->
+                                                <!-- 部件图标墙（单击预览大图，双击勾选打卡） -->
                                                 <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-2 mb-2">
                                                     <div v-for="item in mod.items" :key="item.id" 
                                                         @click="handleItemClick(item)" 
@@ -275,7 +274,6 @@
                                                             <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-1 font-bold">✓</div>
                                                         </div>
 
-                                                        <!-- 部件名称标签（无则留空） -->
                                                         <span class="text-[9px] text-slate-600 font-medium mt-1 truncate max-w-full text-center" :class="{ 'h-3': !item.name }">
                                                             {{ item.name || '' }}
                                                         </span>
@@ -437,7 +435,7 @@
         </div>
     </div>
 
-    <!-- ================= 弹窗 3：大活动编辑/新增 (支持多行切图升级) ================= -->
+    <!-- ================= 弹窗 3：大活动编辑/新增 (支持单个部件增删) ================= -->
     <div v-if="modals.editActivity" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-white max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
@@ -516,7 +514,7 @@
                                     </div>
                                 </div>
 
-                                <!-- 智能切图组件（增强排版切换） -->
+                                <!-- 智能切图组件 -->
                                 <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
                                     <div class="flex items-center justify-between mb-2">
                                         <span class="text-xs font-bold text-slate-700">🖼️ 上传套装截图（自动自适应切图 + 名字提取）</span>
@@ -528,7 +526,6 @@
 
                                     <input type="file" accept="image/*" @change="e => handleCropUpload(e, mod)" class="text-xs text-slate-500 mb-2">
 
-                                    <!-- 快捷布局切换 -->
                                     <div class="flex items-center gap-1.5 mb-2">
                                         <span class="text-[10px] text-slate-400 font-bold">排版预设：</span>
                                         <button type="button" @click="setPresetGrid(mod, 4, 3)" class="px-2 py-0.5 rounded text-[10px] font-bold border hover:border-nikki-400 bg-slate-50">4×3 网格 (多行推荐)</button>
@@ -547,19 +544,46 @@
                                         </div>
                                     </div>
 
-                                    <!-- 部件列表管理（支持直接修改名称） -->
-                                    <div v-if="mod.items && mod.items.length" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 pt-2 border-t border-slate-100">
-                                        <div v-for="item in mod.items" :key="item.id" class="flex flex-col items-center bg-slate-50 p-1.5 rounded-xl border border-slate-200/60">
+                                    <!-- 部件管理头栏（支持手动添加单个部件） -->
+                                    <div class="flex items-center justify-between pt-2 pb-1 border-t border-slate-100">
+                                        <span class="text-[11px] font-bold text-slate-600">部件列表 (当前共 {{ mod.items?.length || 0 }} 件)：</span>
+                                        <button type="button" @click="addSingleItem(mod)" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-nikki-100 text-nikki-600 hover:bg-nikki-200 flex items-center gap-1">
+                                            + 添加单个部件
+                                        </button>
+                                    </div>
+
+                                    <!-- 部件列表网格（支持编辑名称、换图、删除单个部件） -->
+                                    <div v-if="mod.items && mod.items.length" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 pt-1">
+                                        <div v-for="(item, itemIdx) in mod.items" :key="item.id" class="flex flex-col items-center bg-slate-50 p-1.5 rounded-xl border border-slate-200/60 relative group">
+                                            
+                                            <!-- 单个部件右上角删除按钮 -->
+                                            <button type="button" @click="removeSingleItem(mod, itemIdx)" 
+                                                title="删除该部件" 
+                                                class="absolute top-1 right-1 w-4 h-4 rounded-full bg-slate-200 hover:bg-rose-500 hover:text-white text-slate-500 text-[10px] font-bold flex items-center justify-center z-10 transition">
+                                                ×
+                                            </button>
+
+                                            <!-- 部件图（点击切换拥有状态，双击提示） -->
                                             <div class="w-12 h-12 rounded-lg border-2 overflow-hidden relative mb-1 cursor-pointer"
                                                 :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200' : 'border-slate-200 opacity-60'"
-                                                @click="item.owned = !item.owned">
+                                                @click="item.owned = !item.owned"
+                                                title="点击切换拥有状态">
                                                 <img v-if="item.imgUrl" :src="item.imgUrl" class="w-full h-full object-cover">
                                                 <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-500 font-bold">#{{ item.id }}</div>
                                                 <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-0.5 font-bold">✓</div>
                                             </div>
-                                            <input v-model="item.name" type="text" placeholder="部件名(默认为空)" class="w-full px-1 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-nikki-500">
+
+                                            <!-- 单独上传/更换该部件图片 -->
+                                            <label class="text-[9px] text-dream-purple hover:underline cursor-pointer mb-1">
+                                                更换图片
+                                                <input type="file" accept="image/*" @change="e => handleSingleItemImage(e, item)" class="hidden">
+                                            </label>
+
+                                            <!-- 部件名称输入框 -->
+                                            <input v-model="item.name" type="text" placeholder="部件名(空)" class="w-full px-1 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-nikki-500">
                                         </div>
                                     </div>
+                                    <div v-else class="text-center py-4 text-slate-400 text-xs">暂无部件，点击上方【+ 添加单个部件】或上传长截图</div>
                                 </div>
 
                                 <div>
@@ -1079,8 +1103,8 @@ createApp({
 
         const defaultActivities = { 'inikki': inikkiOfficialActivities };
 
-        // 本地数据版本升级
-        const DATA_VERSION_KEY = 'gh_data_version_inikki_v4_doubleclick';
+        // 数据版本标识升级
+        const DATA_VERSION_KEY = 'gh_data_version_inikki_v5_item_management';
         if (!localStorage.getItem(DATA_VERSION_KEY)) {
             localStorage.setItem('gh_activities', JSON.stringify(defaultActivities));
             localStorage.setItem('gh_games', JSON.stringify(defaultGames));
@@ -1131,7 +1155,6 @@ createApp({
             { label: '9:16 立绘', val: 9/16 }
         ];
 
-        // 单击延时防抖（区分单击预览与双击勾选）
         let clickTimer = null;
 
         const currentBackgroundUrl = computed(() => {
@@ -1198,7 +1221,6 @@ createApp({
             refreshIcons();
         }
 
-        // 单击：预览大图（带延迟防抖以防与双击冲突）
         function handleItemClick(item) {
             if (clickTimer) clearTimeout(clickTimer);
             clickTimer = setTimeout(() => {
@@ -1208,13 +1230,42 @@ createApp({
             }, 250);
         }
 
-        // 双击：勾选/取消打卡
         function toggleItemOwned(item, mod) {
             if (clickTimer) clearTimeout(clickTimer);
             item.owned = !item.owned;
             mod.collectedItems = mod.items.filter(i => i.owned).length;
             persistLocal();
         }
+
+        // ================= 单个部件的管理（新增 / 删除 / 单独换图） =================
+        function addSingleItem(mod) {
+            if (!mod.items) mod.items = [];
+            const newId = mod.items.length > 0 ? (Math.max(...mod.items.map(i => i.id || 0)) + 1) : 1;
+            mod.items.push({
+                id: newId,
+                name: '',
+                owned: false,
+                imgUrl: ''
+            });
+            mod.totalItems = mod.items.length;
+        }
+
+        function removeSingleItem(mod, index) {
+            mod.items.splice(index, 1);
+            mod.totalItems = mod.items.length;
+            mod.collectedItems = mod.items.filter(i => i.owned).length;
+        }
+
+        function handleSingleItemImage(e, item) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = evt => {
+                item.imgUrl = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        // =========================================================================
 
         function addGlobalTag() {
             const tag = newTagInput.value.trim();
@@ -1373,7 +1424,6 @@ createApp({
             reader.readAsDataURL(file);
         }
 
-        // 预设网格切换
         function setPresetGrid(mod, cols, rows) {
             mod.cropCols = cols;
             mod.cropRows = rows;
@@ -1381,7 +1431,6 @@ createApp({
             if (mod.cachedImg) executeGridCrop(mod);
         }
 
-        // 核心切图引擎升级：自适应多行网格 + 文字规避 + 本地OCR
         function handleCropUpload(e, mod) {
             const file = e.target.files[0];
             if (!file) return;
@@ -1392,7 +1441,6 @@ createApp({
                     mod.cachedImg = img;
                     executeGridCrop(mod);
 
-                    // 整图 OCR 尝试提取套装大名
                     if (window.Tesseract) {
                         Tesseract.recognize(img, 'chi_sim', { logger: () => {} })
                             .then(res => {
@@ -1422,7 +1470,6 @@ createApp({
             let cols = mod.cropCols;
             let rows = mod.cropRows;
 
-            // 智能判定：长宽比 < 2.2 时判定为 4 列多行排版（如 4x3）
             if (!mod.userSetGrid) {
                 if (aspect < 2.2) {
                     cols = 4;
@@ -1449,7 +1496,6 @@ createApp({
                 for (let c = 0; c < cols; c++) {
                     if (count > maxItems) break;
 
-                    // 针对带名称的多行网格：顶部 72% 为装备图标区，避开底部文字切痕
                     const padX = cellW * 0.06;
                     const padY = cellH * 0.04;
                     const iconW = cellW - padX * 2;
@@ -1467,14 +1513,13 @@ createApp({
 
                     const itemObj = {
                         id: currentIdx,
-                        name: '', // OCR未识别时默认为空
+                        name: '',
                         imgUrl: iconDataUrl,
                         owned: false
                     };
 
                     newItems.push(itemObj);
 
-                    // 尝试从单元格底部截取文字行进行细粒度 OCR
                     if (window.Tesseract && rows > 1) {
                         try {
                             const textCanvas = document.createElement('canvas');
@@ -1524,6 +1569,7 @@ createApp({
 
             formAct.value.modules.forEach(m => {
                 if (m.moduleCategory === 'collection' && m.items) {
+                    m.totalItems = m.items.length;
                     m.collectedItems = m.items.filter(i => i.owned).length;
                 }
             });
@@ -1637,6 +1683,7 @@ createApp({
             editingImgObj, currentRatio, cropRatios, currentBackgroundUrl, currentActivities, totalStats,
             getActivityStats, selectGame, switchView, toggleTimelineLayout, addGlobalTag, removeGlobalTag,
             toggleModTag, openCreateModal, openEditActivityModal, addSubModule, toggleItemOwned, handleItemClick,
+            addSingleItem, removeSingleItem, handleSingleItemImage,
             handleMultiImageUpload, moveImage, openCropper, setCropRatio, applyCropAndOverwrite,
             previewFullImage, handleImageUpload, handleCropUpload, reCrop, setPresetGrid, saveGame, saveActivity,
             pushToGitHub, pullFromGitHub
