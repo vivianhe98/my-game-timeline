@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GamerTimeline Hub · 游戏活动编年与资产手帐</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <!-- Lucide 图标 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Tesseract.js (本地离线 OCR) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nikki: {
+                            50: '#fff1f5',
+                            100: '#ffe4ec',
+                            200: '#fecddb',
+                            400: '#fb7195',
+                            500: '#f43f6e',
+                            600: '#e11d56',
+                        },
+                        dream: {
+                            purple: '#8b5cf6',
+                            glass: 'rgba(255, 255, 255, 0.85)',
+                            border: 'rgba(255, 255, 255, 0.65)'
+                        }
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.08)',
+                        'glow': '0 0 16px rgba(244, 63, 110, 0.35)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 全屏毛玻璃背景 */
+        .bg-dynamic-blur {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1;
+            background-size: cover;
+            background-position: center top;
+            filter: blur(40px) brightness(0.85);
+            transform: scale(1.15);
+            transition: background-image 0.8s ease-in-out;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 鱼骨连接斜线 (竖向) */
+        .bone-left::before {
+            content: ''; position: absolute; top: 28px; right: -28px;
+            width: 28px; height: 2px; background: rgba(244, 63, 110, 0.4);
+            transform: rotate(-15deg); transform-origin: left;
+        }
+        .bone-right::before {
+            content: ''; position: absolute; top: 28px; left: -28px;
+            width: 28px; height: 2px; background: rgba(244, 63, 110, 0.4);
+            transform: rotate(15deg); transform-origin: right;
+        }
+
+        /* 鱼骨连接竖线 (横向卷轴) */
+        .bone-top::after {
+            content: ''; position: absolute; bottom: -24px; left: 50%;
+            width: 2px; height: 24px; background: rgba(244, 63, 110, 0.4);
+            transform: translateX(-50%);
+        }
+        .bone-bottom::after {
+            content: ''; position: absolute; top: -24px; left: 50%;
+            width: 2px; height: 24px; background: rgba(244, 63, 110, 0.4);
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col font-sans select-none antialiased bg-slate-50/50">
+
+<div id="app" class="flex-1 flex flex-col relative min-h-screen">
+    <!-- 全屏自适应毛玻璃动态壁纸 -->
+    <div class="bg-dynamic-blur" :style="{ backgroundImage: currentBackgroundUrl ? `url(${currentBackgroundUrl})` : 'none' }"></div>
+
+    <!-- 顶部常驻导航 -->
+    <header class="sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b border-white/60 px-4 md:px-8 py-3 flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-3">
+            <button v-if="currentView === 'detail'" @click="switchView('home')" 
+                class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/80 hover:bg-white text-slate-700 border border-slate-200/80 transition flex items-center gap-1.5 shadow-sm active:scale-95">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回大厅
+            </button>
+            <div class="flex items-center gap-2">
+                <span class="text-lg">✨</span>
+                <h1 class="text-base md:text-lg font-bold bg-gradient-to-r from-nikki-500 to-dream-purple bg-clip-text text-transparent">
+                    {{ currentView === 'home' ? 'GamerTimeline Hub · 游戏资产看板' : `${activeGame.name} · 编年活动史` }}
+                </h1>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- 游戏详情页专属控制区 -->
+            <template v-if="currentView === 'detail'">
+                <button @click="modals.tags = true" 
+                    class="px-3 py-1.5 rounded-full text-xs font-medium bg-white/80 hover:bg-white border border-slate-200 text-slate-700 flex items-center gap-1.5 shadow-sm transition active:scale-95">
+                    <i data-lucide="tag" class="w-3.5 h-3.5 text-nikki-500"></i>
+                    <span>标签管理</span>
+                </button>
+                <button @click="toggleTimelineLayout" 
+                    class="hidden md:flex px-3 py-1.5 rounded-full text-xs font-medium bg-white/80 hover:bg-white border border-slate-200 text-slate-700 items-center gap-1.5 shadow-sm transition">
+                    <i :data-lucide="timelineLayout === 'vertical' ? 'columns-3' : 'rows-3'" class="w-3.5 h-3.5"></i>
+                    {{ timelineLayout === 'vertical' ? '切为横向卷轴' : '切为竖向鱼骨' }}
+                </button>
+            </template>
+
+            <!-- 云同步设置 -->
+            <button @click="modals.sync = true" 
+                class="px-3 py-1.5 rounded-full text-xs font-medium bg-white/80 hover:bg-white border border-slate-200 text-slate-700 flex items-center gap-1.5 shadow-sm active:scale-95 transition">
+                <i data-lucide="cloud" class="w-3.5 h-3.5 text-dream-purple"></i>
+                <span class="hidden sm:inline">云同步</span>
+            </button>
+
+            <!-- 主创建按钮 -->
+            <button @click="openCreateModal" 
+                class="px-4 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-nikki-500 to-nikki-400 text-white shadow-glow hover:opacity-95 active:scale-95 transition flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>{{ currentView === 'home' ? '新增游戏' : '新增版本活动' }}</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 py-6 flex flex-col">
+
+        <!-- ================= 视图 1：首页 游戏选择 ================= -->
+        <div v-if="currentView === 'home'" class="flex-1 flex flex-col justify-center">
+            <div class="text-center max-w-xl mx-auto mb-10 mt-4">
+                <h2 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight mb-2">选择要回顾的游戏档案</h2>
+                <p class="text-sm text-slate-500">收集进度、卡面图鉴与剧情名场面多端同步漫游</p>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
+                <div v-for="game in games" :key="game.id" @click="selectGame(game)"
+                    class="group relative bg-white/70 backdrop-blur-md rounded-2xl overflow-hidden border border-white/80 shadow-glass hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 cursor-pointer flex flex-col">
+                    <div class="aspect-[3/4] w-full overflow-hidden bg-slate-100 relative">
+                        <img :src="game.cover" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                        <span class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/50 backdrop-blur text-white">
+                            {{ game.type === 'suit' ? '换装收集' : '卡面收集' }}
+                        </span>
+                    </div>
+                    <div class="p-3 text-center bg-white/80">
+                        <h3 class="font-bold text-sm text-slate-800 group-hover:text-nikki-500 transition">{{ game.name }}</h3>
+                        <p class="text-[11px] text-slate-400 mt-0.5">已收录 {{ (activities[game.id] || []).length }} 个版本</p>
+                    </div>
+                </div>
+
+                <!-- 新增游戏卡片 -->
+                <div @click="openCreateModal" 
+                    class="aspect-[3/4] rounded-2xl border-2 border-dashed border-slate-300/80 hover:border-nikki-400 hover:bg-nikki-50/50 transition-all flex flex-col items-center justify-center cursor-pointer text-slate-400 hover:text-nikki-500 group">
+                    <div class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    </div>
+                    <span class="text-xs font-bold">添加新游戏</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 视图 2：游戏详情 鱼骨时间轴 ================= -->
+        <div v-else class="flex-1 flex flex-col">
+            <!-- 顶部汇总面板 -->
+            <div class="bg-white/70 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/80 shadow-glass mb-8 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <img :src="activeGame.cover" class="w-12 h-12 rounded-xl object-cover shadow-sm border border-white" />
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-xl font-black text-slate-800">{{ activeGame.name }}</h2>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-nikki-100 text-nikki-600">
+                                {{ activeGame.type === 'suit' ? '换装部件模式' : '乙游卡面模式' }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">时间轴倒序排列（最新活动置顶，已完整载入2.10至1.0历史版本）</p>
+                    </div>
+                </div>
+
+                <!-- 汇总指标数据 -->
+                <div class="flex items-center gap-6">
+                    <div class="text-center">
+                        <div class="text-xs text-slate-400">总卡池抽数</div>
+                        <div class="text-lg font-black text-nikki-500">{{ totalStats.pulls }} 抽</div>
+                    </div>
+                    <div class="w-px h-8 bg-slate-200"></div>
+                    <div class="text-center">
+                        <div class="text-xs text-slate-400">总收集拥有率</div>
+                        <div class="text-lg font-black text-emerald-500">
+                            {{ totalStats.totalItems ? Math.round((totalStats.ownedItems / totalStats.totalItems) * 100) : 0 }}%
+                            <span class="text-[11px] font-normal text-slate-400">({{ totalStats.ownedItems }}/{{ totalStats.totalItems }})</span>
+                        </div>
+                    </div>
+                    <div class="w-px h-8 bg-slate-200"></div>
+                    <div class="text-center">
+                        <div class="text-xs text-slate-400">收录版本</div>
+                        <div class="text-lg font-black text-slate-700">{{ currentActivities.length }} 期</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-if="currentActivities.length === 0" class="flex-1 flex flex-col items-center justify-center py-20 text-slate-400">
+                <i data-lucide="sparkles" class="w-12 h-12 mb-3 text-nikki-300"></i>
+                <p class="text-sm font-medium">该游戏暂无活动记录，点击右上角【+ 新增版本活动】开始记录！</p>
+            </div>
+
+            <!-- ================= 排版 A：竖向鱼骨轴 ================= -->
+            <div v-else-if="effectiveLayout === 'vertical'" class="relative max-w-4xl mx-auto w-full py-6">
+                <!-- 中轴脊柱 -->
+                <div class="absolute left-4 md:left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-nikki-400 via-dream-purple to-slate-200 rounded-full transform md:-translate-x-1/2 shadow-glow"></div>
+
+                <div class="flex flex-col gap-10">
+                    <div v-for="(act, idx) in currentActivities" :key="act.id" 
+                        class="relative flex flex-col md:flex-row items-center w-full"
+                        :class="[ idx % 2 === 0 ? 'md:justify-start' : 'md:justify-end' ]">
+                        
+                        <!-- 节点圆环 -->
+                        <div class="absolute left-4 md:left-1/2 w-4 h-4 rounded-full bg-white border-4 border-nikki-500 shadow-md transform -translate-x-1/2 z-10"></div>
+
+                        <!-- 卡片主体 -->
+                        <div class="w-[calc(100%-3rem)] ml-12 md:ml-0 md:w-[46%]"
+                            :class="[ idx % 2 === 0 ? 'bone-left' : 'bone-right' ]">
+                            
+                            <div class="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass overflow-hidden hover:shadow-xl transition-all duration-300">
+                                <!-- 活动封面 -->
+                                <div class="h-36 relative bg-slate-100 overflow-hidden cursor-pointer" @click="act.isExpanded = !act.isExpanded">
+                                    <img :src="act.bannerUrl" class="w-full h-full object-cover" />
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-3.5 text-white">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-[11px] font-semibold text-nikki-200">📅 {{ act.startDate }} ~ {{ act.endDate }}</span>
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20 backdrop-blur">
+                                                {{ act.modules?.length || 0 }} 个套装/模块
+                                            </span>
+                                        </div>
+                                        <h3 class="text-base font-extrabold truncate">{{ act.title }}</h3>
+                                    </div>
+                                </div>
+
+                                <!-- 摘要指标与展开列表 -->
+                                <div class="p-4 bg-white/95">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-slate-600 mb-3">
+                                        <span>投入抽数：<strong class="text-nikki-500 font-black">{{ getActivityStats(act).pulls }} 抽</strong></span>
+                                        <span>收集：<strong class="text-emerald-600 font-black">{{ getActivityStats(act).owned }} / {{ getActivityStats(act).total }}</strong></span>
+                                        <button @click="openEditActivityModal(act)" class="text-dream-purple hover:underline text-[11px]">编辑</button>
+                                    </div>
+
+                                    <!-- 子模块展示区 -->
+                                    <div v-show="act.isExpanded" class="pt-3 border-t border-slate-100 flex flex-col gap-3">
+                                        <div v-for="mod in act.modules" :key="mod.moduleId" class="bg-slate-50/90 rounded-xl p-3 border border-slate-200/70">
+                                            
+                                            <!-- 【类型 A：收集子模块展示】 -->
+                                            <template v-if="mod.moduleCategory === 'collection'">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-xs"
+                                                            :class="mod.source === 'cardPool' ? 'bg-amber-500' : 'bg-purple-600'">
+                                                            {{ mod.source === 'cardPool' ? '卡池' : '累充' }}
+                                                        </span>
+                                                        <span class="text-xs font-bold text-slate-800">{{ mod.suitName || '未命名套装' }}</span>
+                                                    </div>
+                                                    <span class="text-[10px] font-bold text-slate-400">{{ mod.collectedItems || 0 }} / {{ mod.totalItems || 0 }}</span>
+                                                </div>
+
+                                                <!-- 标签展示 -->
+                                                <div v-if="mod.tags && mod.tags.length" class="flex flex-wrap gap-1 mb-2">
+                                                    <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-nikki-100 text-nikki-600 font-medium">#{{ t }}</span>
+                                                </div>
+
+                                                <!-- 图标打卡方格墙 -->
+                                                <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-1.5 mb-2">
+                                                    <div v-for="item in mod.items" :key="item.id" @click="toggleItemOwned(item, mod, act)"
+                                                        class="w-9 h-9 rounded-lg border-2 overflow-hidden cursor-pointer relative transition-all duration-200"
+                                                        :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200 scale-105' : 'border-slate-200 opacity-40 grayscale'">
+                                                        <img v-if="item.imgUrl" :src="item.imgUrl" class="w-full h-full object-cover" />
+                                                        <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-[9px] text-slate-500 font-bold">#{{ item.id }}</div>
+                                                        <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-0.5 font-bold">✓</div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 内部备注 -->
+                                                <div v-if="mod.innerNote" class="text-[11px] text-slate-500 bg-white/80 p-2 rounded-lg border border-slate-100">
+                                                    📝 {{ mod.innerNote }}
+                                                </div>
+                                            </template>
+
+                                            <!-- 【类型 B：剧情子模块展示】 -->
+                                            <template v-else>
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-xs"
+                                                            :class="mod.storySource === 'main' ? 'bg-sky-500' : 'bg-emerald-600'">
+                                                            {{ mod.storySource === 'main' ? '主线' : '活动' }}
+                                                        </span>
+                                                        <span class="text-xs font-bold text-slate-800">{{ mod.title || '剧情复盘记录' }}</span>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 剧情备注随笔 -->
+                                                <div v-if="mod.storyNote" class="text-xs text-slate-600 bg-white/90 p-2 rounded-lg border border-slate-100 mb-2 whitespace-pre-line leading-relaxed">
+                                                    {{ mod.storyNote }}
+                                                </div>
+
+                                                <!-- 双图库预览 -->
+                                                <div class="space-y-2">
+                                                    <div v-if="mod.charImages && mod.charImages.length">
+                                                        <div class="text-[10px] font-bold text-slate-400 mb-1">人物相册 ({{ mod.charImages.length }})</div>
+                                                        <div class="flex flex-wrap gap-1.5">
+                                                            <div v-for="img in mod.charImages" :key="img.id" @click="previewFullImage(img.url, img.name)" 
+                                                                class="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs">
+                                                                <img :src="img.url" class="w-full h-full object-cover">
+                                                                <div v-if="img.name" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center truncate px-0.5">{{ img.name }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div v-if="mod.sceneImages && mod.sceneImages.length">
+                                                        <div class="text-[10px] font-bold text-slate-400 mb-1">剧情名场面CG ({{ mod.sceneImages.length }})</div>
+                                                        <div class="flex flex-wrap gap-1.5">
+                                                            <div v-for="img in mod.sceneImages" :key="img.id" @click="previewFullImage(img.url, img.name)"
+                                                                class="w-20 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs">
+                                                                <img :src="img.url" class="w-full h-full object-cover">
+                                                                <div v-if="img.name" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center truncate px-0.5">{{ img.name }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                        </div>
+                                    </div>
+
+                                    <button @click="act.isExpanded = !act.isExpanded" class="w-full text-center text-[11px] text-slate-400 hover:text-nikki-500 mt-2 font-medium">
+                                        {{ act.isExpanded ? '收起详情 ▲' : '点击展开全部套装 ▼' }}
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= 排版 B：横向滚动卷轴 ================= -->
+            <div v-else class="flex-1 overflow-x-auto no-scrollbar py-12 relative flex items-center">
+                <div class="absolute left-0 right-0 top-1/2 h-1 bg-gradient-to-r from-nikki-400 via-dream-purple to-slate-200 transform -translate-y-1/2 shadow-glow min-w-[1200px]"></div>
+
+                <div class="flex gap-16 px-10 relative min-w-max items-center h-[560px]">
+                    <div v-for="(act, idx) in currentActivities" :key="act.id" 
+                        class="w-80 relative flex flex-col items-center"
+                        :class="[ idx % 2 === 0 ? 'bone-top self-start mt-2' : 'bone-bottom self-end mb-2' ]">
+                        
+                        <!-- 横向中轴节点 -->
+                        <div class="absolute left-1/2 w-4 h-4 rounded-full bg-white border-4 border-nikki-500 shadow-md transform -translate-x-1/2 z-10"
+                            :class="[ idx % 2 === 0 ? 'bottom-[-32px]' : 'top-[-32px]' ]"></div>
+
+                        <!-- 卡片主体 -->
+                        <div class="w-full bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass overflow-hidden hover:shadow-xl transition-all duration-300">
+                            <div class="h-32 relative bg-slate-100 overflow-hidden cursor-pointer" @click="act.isExpanded = !act.isExpanded">
+                                <img :src="act.bannerUrl" class="w-full h-full object-cover" />
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex flex-col justify-end p-3 text-white">
+                                    <div class="text-[10px] text-nikki-200 font-semibold">📅 {{ act.startDate }} ~ {{ act.endDate }}</div>
+                                    <h3 class="text-sm font-extrabold truncate">{{ act.title }}</h3>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-white/95">
+                                <div class="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2">
+                                    <span>{{ getActivityStats(act).pulls }} 抽</span>
+                                    <span>{{ getActivityStats(act).owned }} / {{ getActivityStats(act).total }}</span>
+                                    <button @click="openEditActivityModal(act)" class="text-dream-purple hover:underline text-[11px]">编辑</button>
+                                </div>
+                                <div class="text-[11px] text-slate-400 truncate">
+                                    {{ act.note || '暂无备注说明' }}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- ================= 弹窗 1：新增游戏 ================= -->
+    <div v-if="modals.addGame" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-white">
+            <h3 class="text-lg font-black text-slate-800 mb-4">新增游戏档案</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">游戏名称</label>
+                    <input v-model="formGame.name" type="text" placeholder="例如：崩坏：星穹铁道" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-nikki-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">收集主类型</label>
+                    <select v-model="formGame.type" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-nikki-500">
+                        <option value="suit">换装/部件类（无限暖暖/闪耀暖暖模式）</option>
+                        <option value="card">卡面/思绪类（未定/世界之外模式）</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">游戏封面图</label>
+                    <input type="file" accept="image/*" @change="e => handleImageUpload(e, url => formGame.cover = url)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
+                    <img v-if="formGame.cover" :src="formGame.cover" class="h-24 w-full object-cover rounded-xl mt-2 border border-slate-100">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button @click="modals.addGame = false" class="px-4 py-2 rounded-full text-xs font-bold text-slate-500 hover:bg-slate-100">取消</button>
+                <button @click="saveGame" class="px-5 py-2 rounded-full text-xs font-bold bg-nikki-500 text-white shadow-glow">保存创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 弹窗 2：标签管理弹窗 ================= -->
+    <div v-if="modals.tags" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-white">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-black text-slate-800">🏷️ {{ activeGame?.name }} · 专属标签库</h3>
+                <button @click="modals.tags = false" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <p class="text-xs text-slate-400 mb-4">在此添加或删除游戏全局标签，所有活动子模块均可快捷多选复用。</p>
+
+            <div class="flex gap-2 mb-4">
+                <input v-model="newTagInput" @keyup.enter="addGlobalTag" type="text" placeholder="输入新标签名并回车" class="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-nikki-500">
+                <button @click="addGlobalTag" class="px-4 py-1.5 rounded-full text-xs font-bold bg-nikki-500 text-white shadow-sm">+ 添加</button>
+            </div>
+
+            <div class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <div v-for="tag in currentGlobalTags" :key="tag" class="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white border border-slate-200 shadow-xs">
+                    <span>#{{ tag }}</span>
+                    <button @click="removeGlobalTag(tag)" class="text-slate-400 hover:text-rose-500 ml-1">×</button>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-6">
+                <button @click="modals.tags = false" class="px-5 py-2 rounded-full text-xs font-bold bg-slate-800 text-white">完成并返回</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 弹窗 3：大活动编辑/新增 ================= -->
+    <div v-if="modals.editActivity" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-white max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-black text-slate-800">{{ formAct.id ? '编辑版本活动' : '新增版本活动' }}</h3>
+                <button @click="modals.editActivity = false" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">活动/版本主标题</label>
+                        <input v-model="formAct.title" type="text" placeholder="例如：2.10 金羽的裁决" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-nikki-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">时间跨度 (起止日期)</label>
+                        <div class="flex items-center gap-2">
+                            <input v-model="formAct.startDate" type="date" class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs">
+                            <span class="text-xs text-slate-400">至</span>
+                            <input v-model="formAct.endDate" type="date" class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">主宣传KV图</label>
+                    <input type="file" accept="image/*" @change="e => handleImageUpload(e, url => formAct.bannerUrl = url)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
+                    <img v-if="formAct.bannerUrl" :src="formAct.bannerUrl" class="h-28 w-full object-cover rounded-xl mt-2 border">
+                </div>
+
+                <!-- 模块管理区域 -->
+                <div class="border-t border-slate-100 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-black text-slate-800">套装/子模块配置</h4>
+                        <div class="flex gap-2">
+                            <button @click="addSubModule('collection')" class="px-2.5 py-1 rounded-full text-xs font-bold bg-nikki-100 text-nikki-600 hover:bg-nikki-200 flex items-center gap-1">
+                                <i data-lucide="shirt" class="w-3.5 h-3.5"></i> + 收集子模块
+                            </button>
+                            <button @click="addSubModule('story')" class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-dream-purple hover:bg-purple-200 flex items-center gap-1">
+                                <i data-lucide="book-open" class="w-3.5 h-3.5"></i> + 剧情子模块
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div v-for="(mod, mIdx) in formAct.modules" :key="mod.moduleId" class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                            
+                            <!-- 收集类型 -->
+                            <template v-if="mod.moduleCategory === 'collection'">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="w-5 h-5 rounded-full bg-nikki-500 text-white text-xs font-bold flex items-center justify-center">{{ mIdx + 1 }}</span>
+                                        <span class="text-xs font-black text-nikki-600">【收集模块】</span>
+                                        <div class="flex items-center bg-white rounded-lg p-0.5 border border-slate-200 text-xs">
+                                            <button @click="mod.source = 'cardPool'" class="px-2 py-0.5 rounded font-bold" :class="mod.source === 'cardPool' ? 'bg-amber-500 text-white' : 'text-slate-500'">卡池</button>
+                                            <button @click="mod.source = 'topUp'" class="px-2 py-0.5 rounded font-bold" :class="mod.source === 'topUp' ? 'bg-purple-600 text-white' : 'text-slate-500'">累充</button>
+                                        </div>
+                                        <input v-model="mod.suitName" type="text" placeholder="套装/卡面名称" class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white outline-none focus:border-nikki-500">
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-xs text-slate-500">投入抽数:</label>
+                                        <input v-model.number="mod.pulls" type="number" min="0" class="w-16 px-2 py-1 rounded-lg border border-slate-200 text-xs bg-white text-center font-bold">
+                                        <button @click="formAct.modules.splice(mIdx, 1)" class="text-rose-400 hover:text-rose-600 text-xs ml-2">删除</button>
+                                    </div>
+                                </div>
+
+                                <!-- 标签多选 -->
+                                <div class="mb-3 bg-white p-2.5 rounded-xl border border-slate-200/60">
+                                    <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
+                                        <span>🏷️ 勾选标签 (多选)：</span>
+                                        <span class="text-[10px] text-slate-400">已选 {{ mod.tags?.length || 0 }} 个</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <button v-for="tag in currentGlobalTags" :key="tag" 
+                                            @click="toggleModTag(mod, tag)"
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-medium transition"
+                                            :class="(mod.tags || []).includes(tag) ? 'bg-nikki-500 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">
+                                            #{{ tag }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- 智能切图组件 -->
+                                <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-bold text-slate-700">🖼️ 上传长截图（自动网格切图 + OCR识字）</span>
+                                        <button @click="mod.showGridConfig = !mod.showGridConfig" class="text-[11px] text-slate-400 hover:text-dream-purple flex items-center gap-1">
+                                            <i data-lucide="sliders-horizontal" class="w-3 h-3"></i>
+                                            {{ mod.showGridConfig ? '收起微调' : '微调网格' }}
+                                        </button>
+                                    </div>
+
+                                    <input type="file" accept="image/*" @change="e => handleCropUpload(e, mod)" class="text-xs text-slate-500 mb-2">
+
+                                    <div v-if="mod.showGridConfig" class="grid grid-cols-2 gap-2 p-2 bg-slate-50 rounded-lg text-xs mb-2">
+                                        <div>
+                                            <label class="text-[10px] text-slate-400">切割行数 (Rows): {{ mod.cropRows || 1 }}</label>
+                                            <input type="range" min="1" max="4" v-model.number="mod.cropRows" @input="reCrop(mod)" class="w-full">
+                                        </div>
+                                        <div>
+                                            <label class="text-[10px] text-slate-400">切割列数 (Cols): {{ mod.cropCols || mod.totalItems || 10 }}</label>
+                                            <input type="range" min="1" max="16" v-model.number="mod.cropCols" @input="reCrop(mod)" class="w-full">
+                                        </div>
+                                    </div>
+
+                                    <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                                        <div v-for="item in mod.items" :key="item.id" @click="item.owned = !item.owned"
+                                            class="w-11 h-11 rounded-lg border-2 overflow-hidden cursor-pointer relative"
+                                            :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200' : 'border-slate-200 opacity-40 grayscale'">
+                                            <img v-if="item.imgUrl" :src="item.imgUrl" class="w-full h-full object-cover">
+                                            <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-[9px] text-slate-500 font-bold">#{{ item.id }}</div>
+                                            <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-0.5 font-bold">✓</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-400 mb-1">子模块内部备注</label>
+                                    <input v-model="mod.innerNote" type="text" placeholder="记录心得..." class="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs outline-none bg-white focus:border-nikki-500">
+                                </div>
+                            </template>
+
+                            <!-- 剧情类型 -->
+                            <template v-else>
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="w-5 h-5 rounded-full bg-dream-purple text-white text-xs font-bold flex items-center justify-center">{{ mIdx + 1 }}</span>
+                                        <span class="text-xs font-black text-dream-purple">【剧情模块】</span>
+                                        <div class="flex items-center bg-white rounded-lg p-0.5 border border-slate-200 text-xs">
+                                            <button @click="mod.storySource = 'main'" class="px-2 py-0.5 rounded font-bold" :class="mod.storySource === 'main' ? 'bg-sky-500 text-white' : 'text-slate-500'">主线</button>
+                                            <button @click="mod.storySource = 'event'" class="px-2 py-0.5 rounded font-bold" :class="mod.storySource === 'event' ? 'bg-emerald-600 text-white' : 'text-slate-500'">活动</button>
+                                        </div>
+                                        <input v-model="mod.title" type="text" placeholder="剧情标题/阶段" class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white outline-none focus:border-dream-purple">
+                                    </div>
+                                    <button @click="formAct.modules.splice(mIdx, 1)" class="text-rose-400 hover:text-rose-600 text-xs">删除</button>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="block text-[11px] font-bold text-slate-400 mb-1">剧情故事记录与心得</label>
+                                    <textarea v-model="mod.storyNote" placeholder="记录高光剧情、台词..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs h-20 outline-none bg-white focus:border-dream-purple"></textarea>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="bg-white p-3 rounded-xl border border-slate-200/70">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-xs font-bold text-slate-700">👤 人物图库 ({{ mod.charImages?.length || 0 }})</span>
+                                            <label class="text-[11px] text-nikki-500 hover:underline cursor-pointer font-bold">
+                                                + 批量传图
+                                                <input type="file" multiple accept="image/*" @change="e => handleMultiImageUpload(e, mod, 'charImages')" class="hidden">
+                                            </label>
+                                        </div>
+                                        <div class="flex flex-col gap-2 max-h-56 overflow-y-auto no-scrollbar">
+                                            <div v-for="(img, iIdx) in mod.charImages" :key="img.id" class="flex items-center gap-2 p-1.5 rounded-lg border border-slate-100 bg-slate-50">
+                                                <img :src="img.url" class="w-12 h-12 rounded object-cover cursor-pointer" @click="previewFullImage(img.url, img.name)">
+                                                <div class="flex-1 min-w-0">
+                                                    <input v-model="img.name" type="text" placeholder="输入名称(默认为空)" class="w-full px-2 py-0.5 rounded border border-slate-200 text-[11px] bg-white">
+                                                </div>
+                                                <div class="flex flex-col gap-1 text-[10px]">
+                                                    <button @click="openCropper(img)" class="text-dream-purple hover:underline">裁剪</button>
+                                                    <button @click="moveImage(mod, 'charImages', 'sceneImages', iIdx)" class="text-sky-500 hover:underline">移到剧情</button>
+                                                    <button @click="mod.charImages.splice(iIdx, 1)" class="text-rose-400 hover:underline">删除</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white p-3 rounded-xl border border-slate-200/70">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-xs font-bold text-slate-700">🎬 剧情图库 ({{ mod.sceneImages?.length || 0 }})</span>
+                                            <label class="text-[11px] text-dream-purple hover:underline cursor-pointer font-bold">
+                                                + 批量传图
+                                                <input type="file" multiple accept="image/*" @change="e => handleMultiImageUpload(e, mod, 'sceneImages')" class="hidden">
+                                            </label>
+                                        </div>
+                                        <div class="flex flex-col gap-2 max-h-56 overflow-y-auto no-scrollbar">
+                                            <div v-for="(img, iIdx) in mod.sceneImages" :key="img.id" class="flex items-center gap-2 p-1.5 rounded-lg border border-slate-100 bg-slate-50">
+                                                <img :src="img.url" class="w-16 h-12 rounded object-cover cursor-pointer" @click="previewFullImage(img.url, img.name)">
+                                                <div class="flex-1 min-w-0">
+                                                    <input v-model="img.name" type="text" placeholder="输入名称(默认为空)" class="w-full px-2 py-0.5 rounded border border-slate-200 text-[11px] bg-white">
+                                                </div>
+                                                <div class="flex flex-col gap-1 text-[10px]">
+                                                    <button @click="openCropper(img)" class="text-dream-purple hover:underline">裁剪</button>
+                                                    <button @click="moveImage(mod, 'sceneImages', 'charImages', iIdx)" class="text-nikki-500 hover:underline">移到人物</button>
+                                                    <button @click="mod.sceneImages.splice(iIdx, 1)" class="text-rose-400 hover:underline">删除</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">大版本活动备忘杂记</label>
+                    <textarea v-model="formAct.note" placeholder="记录心得..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs h-16 outline-none focus:border-nikki-500"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button @click="modals.editActivity = false" class="px-4 py-2 rounded-full text-xs font-bold text-slate-500 hover:bg-slate-100">取消</button>
+                <button @click="saveActivity" class="px-6 py-2 rounded-full text-xs font-bold bg-nikki-500 text-white shadow-glow">保存活动卡片</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 弹窗 4：图片编辑裁剪 ================= -->
+    <div v-if="modals.cropper" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-white">
+            <h3 class="text-base font-black text-slate-800 mb-2">✂️ 图片编辑裁剪</h3>
+            <p class="text-xs text-slate-400 mb-3">支持快捷比例切换，保存后将直接覆盖当前图库中的原图。</p>
+
+            <div class="flex gap-2 mb-3">
+                <button v-for="r in cropRatios" :key="r.label" 
+                    @click="setCropRatio(r.val)"
+                    class="px-2.5 py-1 rounded-lg text-xs font-bold border transition"
+                    :class="currentRatio === r.val ? 'bg-nikki-500 text-white border-nikki-500' : 'bg-slate-50 text-slate-600 border-slate-200'">
+                    {{ r.label }}
+                </button>
+            </div>
+
+            <div class="w-full h-64 bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center relative">
+                <img id="cropTargetImage" :src="editingImgObj?.url" class="max-h-full max-w-full object-contain">
+            </div>
+
+            <div class="flex justify-end gap-2 mt-5">
+                <button @click="modals.cropper = false" class="px-4 py-2 rounded-full text-xs font-bold text-slate-500 hover:bg-slate-100">取消</button>
+                <button @click="applyCropAndOverwrite" class="px-5 py-2 rounded-full text-xs font-bold bg-dream-purple text-white shadow-md">应用并覆盖原图</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 弹窗 5：全屏大图预览 ================= -->
+    <div v-if="modals.preview" @click="modals.preview = false" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-zoom-out">
+        <img :src="previewData.url" class="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl">
+        <div v-if="previewData.name" class="mt-4 text-white text-sm font-bold bg-white/20 backdrop-blur px-4 py-1 rounded-full">
+            {{ previewData.name }}
+        </div>
+    </div>
+
+    <!-- ================= 弹窗 6：GitHub 双向同步设置 ================= -->
+    <div v-if="modals.sync" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-white">
+            <h3 class="text-lg font-black text-slate-800 mb-2">☁️ GitHub 多端全自动漫游</h3>
+            <p class="text-xs text-slate-400 mb-4">通过 GitHub REST API 实现 PC/手机/平板的实时进度漫游，0 隐私泄露。</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">GitHub Personal Token (PAT)</label>
+                    <input v-model="syncConfig.token" type="password" placeholder="ghp_xxxxxxxxxxxx" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono outline-none focus:border-dream-purple">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">仓库全称 (用户名/仓库名)</label>
+                    <input v-model="syncConfig.repo" type="text" placeholder="例如：myname/my-game-timeline" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-dream-purple">
+                </div>
+            </div>
+            <div class="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+                <button @click="pullFromGitHub" :disabled="syncLoading" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200">
+                    {{ syncLoading ? '拉取中...' : '⬇️ 从云端拉取' }}
+                </button>
+                <div class="flex gap-2">
+                    <button @click="modals.sync = false" class="px-3 py-1.5 rounded-full text-xs font-bold text-slate-400">关闭</button>
+                    <button @click="pushToGitHub" :disabled="syncLoading" class="px-5 py-1.5 rounded-full text-xs font-bold bg-dream-purple text-white shadow-md">
+                        {{ syncLoading ? '同步中...' : '⬆️ 保存并立即推送' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="cropCanvas" class="hidden"></canvas>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+createApp({
+    setup() {
+        const defaultGames = [
+            { id: 'inikki', name: '无限暖暖', type: 'suit', cover: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80' },
+            { id: 'snikki', name: '闪耀暖暖', type: 'suit', cover: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80' },
+            { id: 'wd', name: '未定事件簿', type: 'card', cover: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=600&auto=format&fit=crop&q=80' },
+            { id: 'sjzw', name: '世界之外', type: 'card', cover: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80' },
+            { id: 'ymzx', name: '夜幕之下', type: 'card', cover: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80' }
+        ];
+
+        const defaultTagsMap = {
+            'inikki': ['5星限定', '5星奇迹', '5星联动', '清新', '典雅', '甜美', '帅气', '性感', '四星套'],
+            'snikki': ['闪耀套', '非凡套', '累充', '复刻阁'],
+            'wd': ['SSR', '生日卡', '活动卡池', '累充MR'],
+            'sjzw': ['世界卡', '无量阁', '密语', '兑换'],
+            'ymzx': ['限定卡面', '主线卡', '充值']
+        };
+
+        // 辅助函数：构造套装模块
+        function createSuitModule(modId, suitName, count, attrTag) {
+            return {
+                moduleId: modId,
+                moduleCategory: 'collection',
+                source: 'cardPool',
+                suitName: suitName,
+                pulls: 0,
+                tags: [attrTag],
+                totalItems: count,
+                collectedItems: 0,
+                innerNote: '',
+                cropRows: 1,
+                cropCols: count,
+                showGridConfig: false,
+                items: Array.from({ length: count }, (_, i) => ({
+                    id: i + 1,
+                    name: '',
+                    owned: false,
+                    imgUrl: ''
+                }))
+            };
+        }
+
+        // 全量《无限暖暖》历代版本与核心套装详表（2.10 至 1.0 倒序排列）
+        const inikkiOfficialActivities = [
+            {
+                id: 'act-inikki-2.10',
+                gameId: 'inikki',
+                title: '2.10 金羽的裁决',
+                startDate: '2025-06-01',
+                endDate: '2025-06-25',
+                bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&auto=format&fit=crop&q=80',
+                note: '小王子全球跨界联动大版本，包含金鹰之眼全境隐匿能力与爱上一朵花联动共鸣。',
+                isExpanded: true,
+                modules: [
+                    createSuitModule('mod-2.10-1', '蒙尘之罪', 10, '性感'),
+                    createSuitModule('mod-2.10-2', '如果爱上一朵花', 10, '典雅')
+                ]
+            },
+            {
+                id: 'act-inikki-2.9',
+                gameId: 'inikki',
+                title: '2.9 向晴空绽放',
+                startDate: '2025-05-10',
+                endDate: '2025-05-31',
+                bannerUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1600&auto=format&fit=crop&q=80',
+                note: '栖林沐光·蝶影群体伴随吸虫能力。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.9-1', '花影心期', 10, '甜美')
+                ]
+            },
+            {
+                id: 'act-inikki-2.8',
+                gameId: 'inikki',
+                title: '2.8 黄金尘',
+                startDate: '2025-04-15',
+                endDate: '2025-05-08',
+                bannerUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80',
+                note: '镜影旋舞墙面滑行攀爬，大版本主线誓刃裁光解锁奇迹套。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.8-1', '白夜长旋舞', 10, '帅气'),
+                    createSuitModule('mod-2.8-2', '心光破晓时', 10, '典雅'),
+                    createSuitModule('mod-2.8-3', '咏赞黄昏', 10, '5星奇迹')
+                ]
+            },
+            {
+                id: 'act-inikki-2.7',
+                gameId: 'inikki',
+                title: '2.7 千星所向的旅途',
+                startDate: '2025-03-25',
+                endDate: '2025-04-14',
+                bannerUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1600&auto=format&fit=crop&q=80',
+                note: '星河浪涌·星标位置跃迁。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.7-1', '梦是心之涟', 10, '甜美')
+                ]
+            },
+            {
+                id: 'act-inikki-2.6',
+                gameId: 'inikki',
+                title: '2.6 潮汐尽头的明天',
+                startDate: '2025-03-05',
+                endDate: '2025-03-24',
+                bannerUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&auto=format&fit=crop&q=80',
+                note: '寂静之籁·小动物洗护聚集互动能力。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.6-1', '黎明无声', 10, '典雅')
+                ]
+            },
+            {
+                id: 'act-inikki-2.5',
+                gameId: 'inikki',
+                title: '2.5 万灵的归途',
+                startDate: '2025-02-10',
+                endDate: '2025-03-04',
+                bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&auto=format&fit=crop&q=80',
+                note: '拉姆树驱散浓雾，包含捕虫与幽灵潮汐探索能力。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.5-1', '栖骨生花', 10, '清新'),
+                    createSuitModule('mod-2.5-2', '渡者无归', 10, '性感'),
+                    createSuitModule('mod-2.5-3', '眠于花畔', 9, '甜美')
+                ]
+            },
+            {
+                id: 'act-inikki-2.4',
+                gameId: 'inikki',
+                title: '2.4 嘘！森林不必听',
+                startDate: '2025-01-20',
+                endDate: '2025-02-09',
+                bannerUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1600&auto=format&fit=crop&q=80',
+                note: '狩猎挽歌·同伴协战射击玩法。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.4-1', '她是不驯火', 10, '帅气')
+                ]
+            },
+            {
+                id: 'act-inikki-2.3',
+                gameId: 'inikki',
+                title: '2.3 予我无冕之心',
+                startDate: '2025-01-01',
+                endDate: '2025-01-19',
+                bannerUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&auto=format&fit=crop&q=80',
+                note: '甜霜梦境与浮空甜品能力。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.3-1', '予梦心时', 9, '甜美')
+                ]
+            },
+            {
+                id: 'act-inikki-2.2',
+                gameId: 'inikki',
+                title: '2.2 九色万相生',
+                startDate: '2024-12-10',
+                endDate: '2024-12-31',
+                bannerUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=1600&auto=format&fit=crop&q=80',
+                note: '万相境敦煌联动，九色神鹿飞天仙乐。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.2-1', '九色亦尘心', 10, '典雅'),
+                    createSuitModule('mod-2.2-2', '万相渡浮生', 10, '性感')
+                ]
+            },
+            {
+                id: 'act-inikki-2.1',
+                gameId: 'inikki',
+                title: '2.1 若生命如诗',
+                startDate: '2024-11-20',
+                endDate: '2024-12-09',
+                bannerUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1600&auto=format&fit=crop&q=80',
+                note: '灵兽共鸣与森息跳跃能力。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.1-1', '森之涟', 9, '清新')
+                ]
+            },
+            {
+                id: 'act-inikki-2.0',
+                gameId: 'inikki',
+                title: '2.0 祷声起诸大地',
+                startDate: '2024-10-30',
+                endDate: '2024-11-19',
+                bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&auto=format&fit=crop&q=80',
+                note: '伊赞之土大版本，圣女祷歌与无限之心奇迹套解封。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-2.0-1', '隐于祷音', 10, '典雅'),
+                    createSuitModule('mod-2.0-2', '生于无瑕', 9, '清新'),
+                    createSuitModule('mod-2.0-3', '谒灵', 10, '5星奇迹')
+                ]
+            },
+            {
+                id: 'act-inikki-1.11',
+                gameId: 'inikki',
+                title: '1.11 拾光季',
+                startDate: '2024-10-08',
+                endDate: '2024-10-29',
+                bannerUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80',
+                note: '暗黑哥特与烛影漫步。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.11-1', '无名亦无我', 10, '帅气')
+                ]
+            },
+            {
+                id: 'act-inikki-1.10',
+                gameId: 'inikki',
+                title: '1.10 丰收季',
+                startDate: '2024-09-15',
+                endDate: '2024-10-07',
+                bannerUrl: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&auto=format&fit=crop&q=80',
+                note: '雨露自然女巫。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.10-1', '如雨坠，如花开', 10, '甜美')
+                ]
+            },
+            {
+                id: 'act-inikki-1.9',
+                gameId: 'inikki',
+                title: '1.9 音乐季',
+                startDate: '2024-08-25',
+                endDate: '2024-09-14',
+                bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&auto=format&fit=crop&q=80',
+                note: '歌剧舞台与剧团奏鸣。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.9-1', '咏叙的旧梦', 10, '典雅')
+                ]
+            },
+            {
+                id: 'act-inikki-1.8',
+                gameId: 'inikki',
+                title: '1.8 丹青季',
+                startDate: '2024-08-01',
+                endDate: '2024-08-24',
+                bannerUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=1600&auto=format&fit=crop&q=80',
+                note: '水墨国风白龙与猫妖变幻折纸。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.8-1', '龙隐云墨间', 10, '帅气'),
+                    createSuitModule('mod-1.8-2', '缘缘长相念', 9, '甜美')
+                ]
+            },
+            {
+                id: 'act-inikki-1.7',
+                gameId: 'inikki',
+                title: '1.7 蓝泪季',
+                startDate: '2024-07-10',
+                endDate: '2024-07-31',
+                bannerUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&auto=format&fit=crop&q=80',
+                note: '海妖之泪与水下漫游。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.7-1', '落入泪之潮', 10, '性感')
+                ]
+            },
+            {
+                id: 'act-inikki-1.6',
+                gameId: 'inikki',
+                title: '1.6 天真季',
+                startDate: '2024-06-20',
+                endDate: '2024-07-09',
+                bannerUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1600&auto=format&fit=crop&q=80',
+                note: '自然精灵秘语。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.6-1', '仙踪绮遇', 9, '清新')
+                ]
+            },
+            {
+                id: 'act-inikki-1.5',
+                gameId: 'inikki',
+                title: '1.5 泡泡季',
+                startDate: '2024-05-30',
+                endDate: '2024-06-19',
+                bannerUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1600&auto=format&fit=crop&q=80',
+                note: '冰雪探险与火鸟重力操控。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.5-1', '雪境长歌', 10, '清新'),
+                    createSuitModule('mod-1.5-2', '炽羽不渝', 10, '性感')
+                ]
+            },
+            {
+                id: 'act-inikki-1.4',
+                gameId: 'inikki',
+                title: '1.4 妄想季',
+                startDate: '2024-05-08',
+                endDate: '2024-05-29',
+                bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&auto=format&fit=crop&q=80',
+                note: '木偶与妄想盛宴。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.4-1', '绯夜狂想录', 10, '帅气')
+                ]
+            },
+            {
+                id: 'act-inikki-1.3',
+                gameId: 'inikki',
+                title: '1.3 传说季',
+                startDate: '2024-04-15',
+                endDate: '2024-05-07',
+                bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&auto=format&fit=crop&q=80',
+                note: '八音盒旋律能力。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.3-1', '古典乐章', 9, '典雅')
+                ]
+            },
+            {
+                id: 'act-inikki-1.2',
+                gameId: 'inikki',
+                title: '1.2 花焰季',
+                startDate: '2024-03-20',
+                endDate: '2024-04-14',
+                bannerUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80',
+                note: '烟火夜空跃迁与欢笑熊礼花互动。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.2-1', '缀夜希光', 10, '帅气'),
+                    createSuitModule('mod-1.2-2', '绽响黎明前', 9, '典雅')
+                ]
+            },
+            {
+                id: 'act-inikki-1.1',
+                gameId: 'inikki',
+                title: '1.1 流星季',
+                startDate: '2024-02-28',
+                endDate: '2024-03-19',
+                bannerUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1600&auto=format&fit=crop&q=80',
+                note: '千纸鹤浮空飞越能力。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.1-1', '翩翩愿飞去', 10, '典雅')
+                ]
+            },
+            {
+                id: 'act-inikki-1.0',
+                gameId: 'inikki',
+                title: '1.0 探索季',
+                startDate: '2024-02-01',
+                endDate: '2024-02-27',
+                bannerUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1600&auto=format&fit=crop&q=80',
+                note: '公测启航，滑翔飞跃与花灵跳跃。',
+                isExpanded: false,
+                modules: [
+                    createSuitModule('mod-1.0-1', '蝶屿风袭', 10, '清新'),
+                    createSuitModule('mod-1.0-2', '花漾梦萦', 9, '甜美')
+                ]
+            }
+        ];
+
+        const defaultActivities = {
+            'inikki': inikkiOfficialActivities
+        };
+
+        // 状态读取与版本自动迁移机制
+        const DATA_VERSION_KEY = 'gh_data_version_inikki_v3';
+        if (!localStorage.getItem(DATA_VERSION_KEY)) {
+            // 自动注入最新整理的无限暖暖全量活动数据
+            localStorage.setItem('gh_activities', JSON.stringify(defaultActivities));
+            localStorage.setItem('gh_games', JSON.stringify(defaultGames));
+            localStorage.setItem('gh_game_tags', JSON.stringify(defaultTagsMap));
+            localStorage.setItem(DATA_VERSION_KEY, 'true');
+        }
+
+        const currentView = ref('home');
+        const activeGame = ref(null);
+        const games = ref(JSON.parse(localStorage.getItem('gh_games')) || defaultGames);
+        const activities = ref(JSON.parse(localStorage.getItem('gh_activities')) || defaultActivities);
+        const gameTags = ref(JSON.parse(localStorage.getItem('gh_game_tags')) || defaultTagsMap);
+
+        const timelineLayout = ref(localStorage.getItem('gh_layout') || 'vertical');
+        const isMobile = ref(window.innerWidth < 768);
+        const effectiveLayout = computed(() => isMobile.value ? 'vertical' : timelineLayout.value);
+
+        const modals = ref({
+            addGame: false,
+            editActivity: false,
+            tags: false,
+            cropper: false,
+            preview: false,
+            sync: false
+        });
+
+        const newTagInput = ref('');
+        const currentGlobalTags = computed(() => {
+            if (!activeGame.value) return [];
+            return gameTags.value[activeGame.value.id] || [];
+        });
+
+        const formGame = ref({ name: '', type: 'suit', cover: '' });
+        const formAct = ref({ id: '', title: '', startDate: '', endDate: '', bannerUrl: '', note: '', modules: [] });
+        const syncConfig = ref({
+            token: localStorage.getItem('gh_token') || '',
+            repo: localStorage.getItem('gh_repo') || ''
+        });
+        const syncLoading = ref(false);
+
+        const previewData = ref({ url: '', name: '' });
+        const editingImgObj = ref(null);
+        const currentRatio = ref('free');
+        const cropRatios = [
+            { label: '自由', val: 'free' },
+            { label: '1:1 头像', val: 1 },
+            { label: '16:9 CG', val: 16/9 },
+            { label: '9:16 立绘', val: 9/16 }
+        ];
+
+        const currentBackgroundUrl = computed(() => {
+            if (currentView.value === 'home') return '';
+            const curActs = activities.value[activeGame.value?.id] || [];
+            if (curActs.length > 0 && curActs[0].bannerUrl) {
+                return curActs[0].bannerUrl;
+            }
+            return activeGame.value?.cover || '';
+        });
+
+        const currentActivities = computed(() => {
+            if (!activeGame.value) return [];
+            return activities.value[activeGame.value.id] || [];
+        });
+
+        const totalStats = computed(() => {
+            let pulls = 0, owned = 0, total = 0;
+            currentActivities.value.forEach(act => {
+                const s = getActivityStats(act);
+                pulls += s.pulls;
+                owned += s.owned;
+                total += s.total;
+            });
+            return { pulls, ownedItems: owned, totalItems: total };
+        });
+
+        function getActivityStats(act) {
+            let pulls = 0, owned = 0, total = 0;
+            if (act.modules) {
+                act.modules.forEach(m => {
+                    if (m.moduleCategory === 'collection') {
+                        pulls += Number(m.pulls || 0);
+                        if (m.items) {
+                            owned += m.items.filter(i => i.owned).length;
+                            total += m.items.length;
+                        }
+                    }
+                });
+            }
+            return { pulls, owned, total };
+        }
+
+        function persistLocal() {
+            localStorage.setItem('gh_games', JSON.stringify(games.value));
+            localStorage.setItem('gh_activities', JSON.stringify(activities.value));
+            localStorage.setItem('gh_game_tags', JSON.stringify(gameTags.value));
+        }
+
+        function selectGame(game) {
+            activeGame.value = game;
+            currentView.value = 'detail';
+            refreshIcons();
+        }
+
+        function switchView(view) {
+            currentView.value = view;
+            refreshIcons();
+        }
+
+        function toggleTimelineLayout() {
+            timelineLayout.value = timelineLayout.value === 'vertical' ? 'horizontal' : 'vertical';
+            localStorage.setItem('gh_layout', timelineLayout.value);
+            refreshIcons();
+        }
+
+        function addGlobalTag() {
+            const tag = newTagInput.value.trim();
+            if (!tag) return;
+            const gid = activeGame.value.id;
+            if (!gameTags.value[gid]) gameTags.value[gid] = [];
+            if (!gameTags.value[gid].includes(tag)) {
+                gameTags.value[gid].push(tag);
+                persistLocal();
+            }
+            newTagInput.value = '';
+        }
+
+        function removeGlobalTag(tag) {
+            const gid = activeGame.value.id;
+            gameTags.value[gid] = (gameTags.value[gid] || []).filter(t => t !== tag);
+            persistLocal();
+        }
+
+        function toggleModTag(mod, tag) {
+            if (!mod.tags) mod.tags = [];
+            const idx = mod.tags.indexOf(tag);
+            if (idx > -1) mod.tags.splice(idx, 1);
+            else mod.tags.push(tag);
+        }
+
+        function openCreateModal() {
+            if (currentView.value === 'home') {
+                formGame.value = { name: '', type: 'suit', cover: '' };
+                modals.value.addGame = true;
+            } else {
+                openEditActivityModal();
+            }
+            refreshIcons();
+        }
+
+        function openEditActivityModal(act = null) {
+            if (act) {
+                formAct.value = JSON.parse(JSON.stringify(act));
+            } else {
+                formAct.value = {
+                    id: '',
+                    title: '',
+                    startDate: new Date().toISOString().slice(0, 10),
+                    endDate: '',
+                    bannerUrl: '',
+                    note: '',
+                    modules: []
+                };
+                addSubModule('collection');
+            }
+            modals.value.editActivity = true;
+            refreshIcons();
+        }
+
+        function addSubModule(category) {
+            if (category === 'collection') {
+                formAct.value.modules.push({
+                    moduleId: 'mod_' + Date.now(),
+                    moduleCategory: 'collection',
+                    source: 'cardPool',
+                    suitName: '',
+                    pulls: 0,
+                    tags: [],
+                    innerNote: '',
+                    totalItems: 10,
+                    collectedItems: 0,
+                    cropRows: 1,
+                    cropCols: 10,
+                    showGridConfig: false,
+                    items: Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: '', owned: false, imgUrl: '' }))
+                });
+            } else {
+                formAct.value.modules.push({
+                    moduleId: 'mod_' + Date.now(),
+                    moduleCategory: 'story',
+                    storySource: 'main',
+                    title: '',
+                    storyNote: '',
+                    charImages: [],
+                    sceneImages: []
+                });
+            }
+            refreshIcons();
+        }
+
+        function toggleItemOwned(item, mod, act) {
+            item.owned = !item.owned;
+            mod.collectedItems = mod.items.filter(i => i.owned).length;
+            persistLocal();
+        }
+
+        function handleMultiImageUpload(e, mod, targetArrayName) {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = evt => {
+                    mod[targetArrayName].push({
+                        id: 'img_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                        url: evt.target.result,
+                        name: ''
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function moveImage(mod, fromArray, toArray, index) {
+            const item = mod[fromArray].splice(index, 1)[0];
+            if (item) mod[toArray].push(item);
+        }
+
+        function openCropper(imgObj) {
+            editingImgObj.value = imgObj;
+            currentRatio.value = 'free';
+            modals.value.cropper = true;
+        }
+
+        function setCropRatio(ratio) {
+            currentRatio.value = ratio;
+        }
+
+        function applyCropAndOverwrite() {
+            if (!editingImgObj.value) return;
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.getElementById('cropCanvas');
+                const ctx = canvas.getContext('2d');
+
+                let targetW = img.width;
+                let targetH = img.height;
+
+                if (currentRatio.value !== 'free') {
+                    const r = currentRatio.value;
+                    if (img.width / img.height > r) {
+                        targetW = img.height * r;
+                    } else {
+                        targetH = img.width / r;
+                    }
+                }
+
+                canvas.width = targetW;
+                canvas.height = targetH;
+                const startX = (img.width - targetW) / 2;
+                const startY = (img.height - targetH) / 2;
+
+                ctx.drawImage(img, startX, startY, targetW, targetH, 0, 0, targetW, targetH);
+                editingImgObj.value.url = canvas.toDataURL('image/jpeg', 0.9);
+                modals.value.cropper = false;
+            };
+            img.src = editingImgObj.value.url;
+        }
+
+        function previewFullImage(url, name) {
+            previewData.value = { url, name };
+            modals.value.preview = true;
+        }
+
+        function handleImageUpload(e, callback) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = evt => callback(evt.target.result);
+            reader.readAsDataURL(file);
+        }
+
+        function handleCropUpload(e, mod) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = evt => {
+                const img = new Image();
+                img.onload = () => {
+                    mod.cachedImg = img;
+                    executeGridCrop(mod);
+
+                    if (window.Tesseract) {
+                        Tesseract.recognize(img, 'chi_sim', { logger: () => {} })
+                            .then(res => {
+                                const text = (res.data.text || '').trim();
+                                if (text && !mod.suitName) {
+                                    const firstLine = text.split('\n')[0].replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+                                    if (firstLine) mod.suitName = firstLine;
+                                }
+                            }).catch(() => {});
+                    }
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function reCrop(mod) {
+            if (mod.cachedImg) executeGridCrop(mod);
+        }
+
+        function executeGridCrop(mod) {
+            const img = mod.cachedImg;
+            const rows = mod.cropRows || 1;
+            const cols = mod.cropCols || mod.totalItems || 10;
+            const canvas = document.getElementById('cropCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const cellW = img.width / cols;
+            const cellH = img.height / rows;
+
+            canvas.width = 120;
+            canvas.height = 120;
+
+            const newItems = [];
+            let count = 1;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    ctx.clearRect(0, 0, 120, 120);
+                    ctx.drawImage(img, c * cellW, r * cellH, cellW, cellH, 0, 0, 120, 120);
+                    newItems.push({
+                        id: count++,
+                        name: '',
+                        imgUrl: canvas.toDataURL('image/jpeg', 0.85),
+                        owned: false
+                    });
+                }
+            }
+            mod.items = newItems;
+            mod.totalItems = newItems.length;
+        }
+
+        function saveGame() {
+            if (!formGame.value.name) return alert('请输入游戏名称！');
+            const gid = 'g_' + Date.now();
+            games.value.push({
+                id: gid,
+                name: formGame.value.name,
+                type: formGame.value.type,
+                cover: formGame.value.cover || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80'
+            });
+            gameTags.value[gid] = ['常驻', '限定', '卡池'];
+            persistLocal();
+            modals.value.addGame = false;
+            refreshIcons();
+        }
+
+        function saveActivity() {
+            if (!formAct.value.title) return alert('请输入活动标题！');
+            const gameId = activeGame.value.id;
+            if (!activities.value[gameId]) activities.value[gameId] = [];
+
+            formAct.value.modules.forEach(m => {
+                if (m.moduleCategory === 'collection' && m.items) {
+                    m.collectedItems = m.items.filter(i => i.owned).length;
+                }
+            });
+
+            if (formAct.value.id) {
+                const idx = activities.value[gameId].findIndex(a => a.id === formAct.value.id);
+                if (idx > -1) activities.value[gameId][idx] = { ...formAct.value };
+            } else {
+                activities.value[gameId].unshift({
+                    ...formAct.value,
+                    id: 'act_' + Date.now(),
+                    gameId: gameId,
+                    isExpanded: true
+                });
+            }
+
+            persistLocal();
+            modals.value.editActivity = false;
+            refreshIcons();
+        }
+
+        async function pushToGitHub() {
+            const { token, repo } = syncConfig.value;
+            if (!token || !repo) return alert('请填写 GitHub PAT Token 和仓库名称！');
+
+            syncLoading.value = true;
+            localStorage.setItem('gh_token', token);
+            localStorage.setItem('gh_repo', repo);
+
+            try {
+                const path = 'game_timeline_data.json';
+                const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+                
+                let sha = '';
+                const getRes = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
+                if (getRes.ok) {
+                    const existing = await getRes.json();
+                    sha = existing.sha;
+                }
+
+                const payload = { games: games.value, activities: activities.value, gameTags: gameTags.value };
+                const contentEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+
+                const putRes = await fetch(url, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: 'Sync gamer timeline data',
+                        content: contentEncoded,
+                        sha: sha || undefined
+                    })
+                });
+
+                if (putRes.ok) {
+                    alert('🎉 成功推送到 GitHub 仓库！所有设备均已同步最新数据');
+                    modals.value.sync = false;
+                } else {
+                    const err = await putRes.json();
+                    alert('推送失败: ' + err.message);
+                }
+            } catch (err) {
+                alert('网络异常: ' + err.message);
+            } finally {
+                syncLoading.value = false;
+            }
+        }
+
+        async function pullFromGitHub() {
+            const { token, repo } = syncConfig.value;
+            if (!token || !repo) return alert('请填写 GitHub PAT Token 和仓库名称！');
+
+            syncLoading.value = true;
+            try {
+                const url = `https://api.github.com/repos/${repo}/contents/game_timeline_data.json`;
+                const res = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
+                if (res.ok) {
+                    const data = await res.json();
+                    const rawJson = decodeURIComponent(escape(atob(data.content)));
+                    const parsed = JSON.parse(rawJson);
+
+                    if (parsed.games) games.value = parsed.games;
+                    if (parsed.activities) activities.value = parsed.activities;
+                    if (parsed.gameTags) gameTags.value = parsed.gameTags;
+                    persistLocal();
+
+                    alert('⬇️ 数据已成功从云端同步到当前设备！');
+                    modals.value.sync = false;
+                } else {
+                    alert('云端暂无数据文件或读取失败！');
+                }
+            } catch (err) {
+                alert('拉取失败: ' + err.message);
+            } finally {
+                syncLoading.value = false;
+                refreshIcons();
+            }
+        }
+
+        function refreshIcons() {
+            nextTick(() => { if (window.lucide) lucide.createIcons(); });
+        }
+
+        onMounted(() => {
+            window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768; });
+            refreshIcons();
+        });
+
+        return {
+            currentView, activeGame, games, activities, gameTags, timelineLayout, effectiveLayout, modals,
+            newTagInput, currentGlobalTags, formGame, formAct, syncConfig, syncLoading, previewData,
+            editingImgObj, currentRatio, cropRatios, currentBackgroundUrl, currentActivities, totalStats,
+            getActivityStats, selectGame, switchView, toggleTimelineLayout, addGlobalTag, removeGlobalTag,
+            toggleModTag, openCreateModal, openEditActivityModal, addSubModule, toggleItemOwned,
+            handleMultiImageUpload, moveImage, openCropper, setCropRatio, applyCropAndOverwrite,
+            previewFullImage, handleImageUpload, handleCropUpload, reCrop, saveGame, saveActivity,
+            pushToGitHub, pullFromGitHub
+        };
+    }
+}).mount('#app');
+</script>
+
+</body>
+</html>
