@@ -144,7 +144,6 @@
                     <div class="aspect-[3/4] w-full overflow-hidden bg-slate-100 relative">
                         <img :src="game.cover" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                         
-                        <!-- 更换封面按钮 -->
                         <button @click.stop="openEditGameModal(game)" 
                             title="更换封面/编辑游戏" 
                             class="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-white/85 hover:bg-white text-slate-700 backdrop-blur shadow-sm flex items-center justify-center opacity-85 hover:opacity-100 transition z-10 hover:scale-110 active:scale-95">
@@ -257,11 +256,10 @@
                                     <div v-show="act.isExpanded" class="pt-3 border-t border-slate-100 flex flex-col gap-3">
                                         <div v-for="mod in act.modules" :key="mod.moduleId" class="bg-slate-50/90 rounded-xl p-3 border border-slate-200/70">
                                             
-                                            <!-- 【类型 A：收集子模块】 -->
+                                            <!-- 【收集子模块】 -->
                                             <template v-if="mod.moduleCategory === 'collection'">
                                                 <div class="flex items-center justify-between mb-2">
                                                     <div class="flex items-center gap-1.5 flex-wrap">
-                                                        <!-- 来源标记徽章（卡池 / 累充 / 免费） -->
                                                         <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-xs"
                                                             :class="{
                                                                 'bg-amber-500': mod.source === 'cardPool',
@@ -305,7 +303,7 @@
                                                 </div>
                                             </template>
 
-                                            <!-- 【类型 B：剧情子模块】 -->
+                                            <!-- 【剧情子模块】 -->
                                             <template v-else>
                                                 <div class="flex items-center justify-between mb-2">
                                                     <div class="flex items-center gap-1.5">
@@ -457,7 +455,7 @@
         </div>
     </div>
 
-    <!-- ================= 弹窗 3：大活动编辑/新增 (来源支持【卡池/累充/免费】) ================= -->
+    <!-- ================= 弹窗 3：大活动编辑/新增 ================= -->
     <div v-if="modals.editActivity" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-white max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
@@ -767,6 +765,7 @@ const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
 createApp({
     setup() {
+        // 预设 5 款基础游戏卡片（无任何写死的版本与活动数据）
         const defaultGames = [
             { id: 'inikki', name: '无限暖暖', type: 'suit', cover: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80' },
             { id: 'snikki', name: '闪耀暖暖', type: 'suit', cover: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80' },
@@ -775,6 +774,7 @@ createApp({
             { id: 'ymzx', name: '夜幕之下', type: 'card', cover: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80' }
         ];
 
+        // 默认标签池
         const defaultTagsMap = {
             'inikki': ['5星限定', '5星奇迹', '5星联动', '清新', '典雅', '甜美', '帅气', '性感', '四星套'],
             'snikki': ['闪耀套', '非凡套', '累充', '复刻阁'],
@@ -783,357 +783,11 @@ createApp({
             'ymzx': ['限定卡面', '主线卡', '充值']
         };
 
-        function createSuitModule(modId, suitName, count, attrTag, source = 'cardPool') {
-            return {
-                moduleId: modId,
-                moduleCategory: 'collection',
-                source: source, // cardPool / topUp / free
-                suitName: suitName,
-                pulls: 0,
-                tags: [attrTag],
-                totalItems: count,
-                collectedItems: 0,
-                innerNote: '',
-                cropRows: 3,
-                cropCols: 4,
-                showGridConfig: false,
-                items: Array.from({ length: count }, (_, i) => ({
-                    id: i + 1,
-                    name: '',
-                    owned: false,
-                    imgUrl: ''
-                }))
-            };
-        }
-
-        const inikkiOfficialActivities = [
-            {
-                id: 'act-inikki-2.10',
-                gameId: 'inikki',
-                title: '2.10 金羽的裁决',
-                startDate: '2025-06-01',
-                endDate: '2025-06-25',
-                bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&auto=format&fit=crop&q=80',
-                note: '小王子全球跨界联动大版本，包含金鹰之眼全境隐匿能力与爱上一朵花联动共鸣。',
-                isExpanded: true,
-                modules: [
-                    createSuitModule('mod-2.10-1', '蒙尘之罪', 10, '性感', 'cardPool'),
-                    createSuitModule('mod-2.10-2', '如果爱上一朵花', 10, '典雅', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-2.9',
-                gameId: 'inikki',
-                title: '2.9 向晴空绽放',
-                startDate: '2025-05-10',
-                endDate: '2025-05-31',
-                bannerUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1600&auto=format&fit=crop&q=80',
-                note: '栖林沐光·蝶影群体伴随吸虫能力。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.9-1', '花影心期', 10, '甜美', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-2.8',
-                gameId: 'inikki',
-                title: '2.8 黄金尘',
-                startDate: '2025-04-15',
-                endDate: '2025-05-08',
-                bannerUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80',
-                note: '镜影旋舞墙面滑行攀爬，大版本主线誓刃裁光解锁奇迹套。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.8-1', '白夜长旋舞', 10, '帅气', 'cardPool'),
-                    createSuitModule('mod-2.8-2', '心光破晓时', 10, '典雅', 'cardPool'),
-                    createSuitModule('mod-2.8-3', '咏赞黄昏', 10, '5星奇迹', 'free')
-                ]
-            },
-            {
-                id: 'act-inikki-2.7',
-                gameId: 'inikki',
-                title: '2.7 千星所向的旅途',
-                startDate: '2025-03-25',
-                endDate: '2025-04-14',
-                bannerUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1600&auto=format&fit=crop&q=80',
-                note: '星河浪涌·星标位置跃迁。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.7-1', '梦是心之涟', 10, '甜美', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-2.6',
-                gameId: 'inikki',
-                title: '2.6 潮汐尽头的明天',
-                startDate: '2025-03-05',
-                endDate: '2025-03-24',
-                bannerUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&auto=format&fit=crop&q=80',
-                note: '寂静之籁·小动物洗护聚集互动能力。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.6-1', '黎明无声', 10, '典雅', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-2.5',
-                gameId: 'inikki',
-                title: '2.5 万灵的归途',
-                startDate: '2025-02-10',
-                endDate: '2025-03-04',
-                bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&auto=format&fit=crop&q=80',
-                note: '拉姆树驱散浓雾，包含捕虫与幽灵潮汐探索能力。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.5-1', '栖骨生花', 10, '清新', 'cardPool'),
-                    createSuitModule('mod-2.5-2', '渡者无归', 10, '性感', 'cardPool'),
-                    createSuitModule('mod-2.5-3', '眠于花畔', 9, '甜美', 'free')
-                ]
-            },
-            {
-                id: 'act-inikki-2.4',
-                gameId: 'inikki',
-                title: '2.4 嘘！森林不必听',
-                startDate: '2025-01-20',
-                endDate: '2025-02-09',
-                bannerUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1600&auto=format&fit=crop&q=80',
-                note: '狩猎挽歌·同伴协战射击玩法。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.4-1', '她是不驯火', 10, '帅气', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-2.3',
-                gameId: 'inikki',
-                title: '2.3 予我无冕之心',
-                startDate: '2025-01-01',
-                endDate: '2025-01-19',
-                bannerUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&auto=format&fit=crop&q=80',
-                note: '甜霜梦境与浮空甜品能力。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.3-1', '予梦心时', 9, '甜美', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-2.2',
-                gameId: 'inikki',
-                title: '2.2 九色万相生',
-                startDate: '2024-12-10',
-                endDate: '2024-12-31',
-                bannerUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=1600&auto=format&fit=crop&q=80',
-                note: '万相境敦煌联动，九色神鹿飞天仙乐。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.2-1', '九色亦尘心', 10, '典雅', 'cardPool'),
-                    createSuitModule('mod-2.2-2', '万相渡浮生', 10, '性感', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-2.1',
-                gameId: 'inikki',
-                title: '2.1 若生命如诗',
-                startDate: '2024-11-20',
-                endDate: '2024-12-09',
-                bannerUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1600&auto=format&fit=crop&q=80',
-                note: '灵兽共鸣与森息跳跃能力。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.1-1', '森之涟', 9, '清新', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-2.0',
-                gameId: 'inikki',
-                title: '2.0 祷声起诸大地',
-                startDate: '2024-10-30',
-                endDate: '2024-11-19',
-                bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&auto=format&fit=crop&q=80',
-                note: '伊赞之土大版本，圣女祷歌与无限之心奇迹套解封。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-2.0-1', '隐于祷音', 10, '典雅', 'cardPool'),
-                    createSuitModule('mod-2.0-2', '生于无瑕', 9, '清新', 'cardPool'),
-                    createSuitModule('mod-2.0-3', '谒灵', 10, '5星奇迹', 'free')
-                ]
-            },
-            {
-                id: 'act-inikki-1.11',
-                gameId: 'inikki',
-                title: '1.11 拾光季',
-                startDate: '2024-10-08',
-                endDate: '2024-10-29',
-                bannerUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80',
-                note: '暗黑哥特与烛影漫步。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.11-1', '无名亦无我', 10, '帅气', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.10',
-                gameId: 'inikki',
-                title: '1.10 丰收季',
-                startDate: '2024-09-15',
-                endDate: '2024-10-07',
-                bannerUrl: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&auto=format&fit=crop&q=80',
-                note: '雨露自然女巫。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.10-1', '如雨坠，如花开', 10, '甜美', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.9',
-                gameId: 'inikki',
-                title: '1.9 音乐季',
-                startDate: '2024-08-25',
-                endDate: '2024-09-14',
-                bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&auto=format&fit=crop&q=80',
-                note: '歌剧舞台与剧团奏鸣。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.9-1', '咏叙的旧梦', 10, '典雅', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.8',
-                gameId: 'inikki',
-                title: '1.8 丹青季',
-                startDate: '2024-08-01',
-                endDate: '2024-08-24',
-                bannerUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=1600&auto=format&fit=crop&q=80',
-                note: '水墨国风白龙与猫妖变幻折纸。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.8-1', '龙隐云墨间', 10, '帅气', 'cardPool'),
-                    createSuitModule('mod-1.8-2', '缘缘长相念', 9, '甜美', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.7',
-                gameId: 'inikki',
-                title: '1.7 蓝泪季',
-                startDate: '2024-07-10',
-                endDate: '2024-07-31',
-                bannerUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&auto=format&fit=crop&q=80',
-                note: '海妖之泪与水下漫游。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.7-1', '落入泪之潮', 10, '性感', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.6',
-                gameId: 'inikki',
-                title: '1.6 天真季',
-                startDate: '2024-06-20',
-                endDate: '2024-07-09',
-                bannerUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1600&auto=format&fit=crop&q=80',
-                note: '自然精灵秘语。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.6-1', '仙踪绮遇', 9, '清新', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.5',
-                gameId: 'inikki',
-                title: '1.5 泡泡季',
-                startDate: '2024-05-30',
-                endDate: '2024-06-19',
-                bannerUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1600&auto=format&fit=crop&q=80',
-                note: '冰雪探险与火鸟重力操控。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.5-1', '雪境长歌', 10, '清新', 'cardPool'),
-                    createSuitModule('mod-1.5-2', '炽羽不渝', 10, '性感', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.4',
-                gameId: 'inikki',
-                title: '1.4 妄想季',
-                startDate: '2024-05-08',
-                endDate: '2024-05-29',
-                bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1600&auto=format&fit=crop&q=80',
-                note: '木偶与妄想盛宴。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.4-1', '绯夜狂想录', 10, '帅气', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.3',
-                gameId: 'inikki',
-                title: '1.3 传说季',
-                startDate: '2024-04-15',
-                endDate: '2024-05-07',
-                bannerUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&auto=format&fit=crop&q=80',
-                note: '八音盒旋律能力。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.3-1', '古典乐章', 9, '典雅', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.2',
-                gameId: 'inikki',
-                title: '1.2 花焰季',
-                startDate: '2024-03-20',
-                endDate: '2024-04-14',
-                bannerUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1600&auto=format&fit=crop&q=80',
-                note: '烟火夜空跃迁与欢笑熊礼花互动。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.2-1', '缀夜希光', 10, '帅气', 'cardPool'),
-                    createSuitModule('mod-1.2-2', '绽响黎明前', 9, '典雅', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.1',
-                gameId: 'inikki',
-                title: '1.1 流星季',
-                startDate: '2024-02-28',
-                endDate: '2024-03-19',
-                bannerUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1600&auto=format&fit=crop&q=80',
-                note: '千纸鹤浮空飞越能力。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.1-1', '翩翩愿飞去', 10, '典雅', 'cardPool')
-                ]
-            },
-            {
-                id: 'act-inikki-1.0',
-                gameId: 'inikki',
-                title: '1.0 探索季',
-                startDate: '2024-02-01',
-                endDate: '2024-02-27',
-                bannerUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1600&auto=format&fit=crop&q=80',
-                note: '公测启航，滑翔飞跃与花灵跳跃。',
-                isExpanded: false,
-                modules: [
-                    createSuitModule('mod-1.0-1', '蝶屿风袭', 10, '清新', 'cardPool'),
-                    createSuitModule('mod-1.0-2', '花漾梦萦', 9, '甜美', 'cardPool')
-                ]
-            }
-        ];
-
-        const defaultActivities = { 'inikki': inikkiOfficialActivities };
-
-        const DATA_VERSION_KEY = 'gh_data_version_inikki_v7_free_source';
-        if (!localStorage.getItem(DATA_VERSION_KEY)) {
-            localStorage.setItem('gh_activities', JSON.stringify(defaultActivities));
-            localStorage.setItem('gh_games', JSON.stringify(defaultGames));
-            localStorage.setItem('gh_game_tags', JSON.stringify(defaultTagsMap));
-            localStorage.setItem(DATA_VERSION_KEY, 'true');
-        }
-
+        // 数据完全来源于本地缓存或云端，代码中不再包含臃肿的静态版本
         const currentView = ref('home');
         const activeGame = ref(null);
         const games = ref(JSON.parse(localStorage.getItem('gh_games')) || defaultGames);
-        const activities = ref(JSON.parse(localStorage.getItem('gh_activities')) || defaultActivities);
+        const activities = ref(JSON.parse(localStorage.getItem('gh_activities')) || {});
         const gameTags = ref(JSON.parse(localStorage.getItem('gh_game_tags')) || defaultTagsMap);
 
         const timelineLayout = ref(localStorage.getItem('gh_layout') || 'vertical');
@@ -1674,11 +1328,14 @@ createApp({
             }
         }
 
-        async function pullFromGitHub() {
+        async function pullFromGitHub(silent = false) {
             const { token, repo } = syncConfig.value;
-            if (!token || !repo) return alert('请填写 GitHub PAT Token 和仓库名称！');
+            if (!token || !repo) {
+                if (!silent) alert('请填写 GitHub PAT Token 和仓库名称！');
+                return;
+            }
 
-            syncLoading.value = true;
+            if (!silent) syncLoading.value = true;
             try {
                 const url = `https://api.github.com/repos/${repo}/contents/game_timeline_data.json`;
                 const res = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
@@ -1692,15 +1349,17 @@ createApp({
                     if (parsed.gameTags) gameTags.value = parsed.gameTags;
                     persistLocal();
 
-                    alert('⬇️ 数据已成功从云端同步到当前设备！');
-                    modals.value.sync = false;
+                    if (!silent) {
+                        alert('⬇️ 数据已成功从云端同步到当前设备！');
+                        modals.value.sync = false;
+                    }
                 } else {
-                    alert('云端暂无数据文件或读取失败！');
+                    if (!silent) alert('云端暂无数据文件或读取失败！');
                 }
             } catch (err) {
-                alert('拉取失败: ' + err.message);
+                if (!silent) alert('拉取失败: ' + err.message);
             } finally {
-                syncLoading.value = false;
+                if (!silent) syncLoading.value = false;
                 refreshIcons();
             }
         }
@@ -1712,6 +1371,11 @@ createApp({
         onMounted(() => {
             window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768; });
             refreshIcons();
+
+            // 智能特性：打开网页时，若已配置过 Token，自动静默从云端拉取最新数据（确保多端漫游体验极致无缝）
+            if (syncConfig.value.token && syncConfig.value.repo) {
+                pullFromGitHub(true);
+            }
         });
 
         return {
