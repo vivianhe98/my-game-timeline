@@ -130,7 +130,7 @@
     <!-- 主体内容 -->
     <main class="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 py-6 flex flex-col">
 
-        <!-- ================= 视图 1：首页 游戏选择（支持直接换图） ================= -->
+        <!-- ================= 视图 1：首页 游戏选择 ================= -->
         <div v-if="currentView === 'home'" class="flex-1 flex flex-col justify-center">
             <div class="text-center max-w-xl mx-auto mb-10 mt-4">
                 <h2 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight mb-2">选择要回顾的游戏档案</h2>
@@ -144,7 +144,7 @@
                     <div class="aspect-[3/4] w-full overflow-hidden bg-slate-100 relative">
                         <img :src="game.cover" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                         
-                        <!-- 更换封面/编辑游戏图标按钮 -->
+                        <!-- 更换封面按钮 -->
                         <button @click.stop="openEditGameModal(game)" 
                             title="更换封面/编辑游戏" 
                             class="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-white/85 hover:bg-white text-slate-700 backdrop-blur shadow-sm flex items-center justify-center opacity-85 hover:opacity-100 transition z-10 hover:scale-110 active:scale-95">
@@ -257,12 +257,18 @@
                                     <div v-show="act.isExpanded" class="pt-3 border-t border-slate-100 flex flex-col gap-3">
                                         <div v-for="mod in act.modules" :key="mod.moduleId" class="bg-slate-50/90 rounded-xl p-3 border border-slate-200/70">
                                             
+                                            <!-- 【类型 A：收集子模块】 -->
                                             <template v-if="mod.moduleCategory === 'collection'">
                                                 <div class="flex items-center justify-between mb-2">
                                                     <div class="flex items-center gap-1.5 flex-wrap">
+                                                        <!-- 来源标记徽章（卡池 / 累充 / 免费） -->
                                                         <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-xs"
-                                                            :class="mod.source === 'cardPool' ? 'bg-amber-500' : 'bg-purple-600'">
-                                                            {{ mod.source === 'cardPool' ? '卡池' : '累充' }}
+                                                            :class="{
+                                                                'bg-amber-500': mod.source === 'cardPool',
+                                                                'bg-purple-600': mod.source === 'topUp',
+                                                                'bg-emerald-500': mod.source === 'free'
+                                                            }">
+                                                            {{ mod.source === 'cardPool' ? '卡池' : (mod.source === 'topUp' ? '累充' : '免费') }}
                                                         </span>
                                                         <span class="text-xs font-bold text-slate-800">{{ mod.suitName || '未命名套装' }}</span>
                                                     </div>
@@ -273,6 +279,7 @@
                                                     <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-nikki-100 text-nikki-600 font-medium">#{{ t }}</span>
                                                 </div>
 
+                                                <!-- 部件图标墙（单击预览大图，双击勾选打卡） -->
                                                 <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-2 mb-2">
                                                     <div v-for="item in mod.items" :key="item.id" 
                                                         @click="handleItemClick(item)" 
@@ -298,6 +305,7 @@
                                                 </div>
                                             </template>
 
+                                            <!-- 【类型 B：剧情子模块】 -->
                                             <template v-else>
                                                 <div class="flex items-center justify-between mb-2">
                                                     <div class="flex items-center gap-1.5">
@@ -391,7 +399,7 @@
         </div>
     </main>
 
-    <!-- ================= 弹窗 1：新增/编辑游戏档案（更换封面） ================= -->
+    <!-- ================= 弹窗 1：新增/编辑游戏档案 ================= -->
     <div v-if="modals.addGame" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-white">
             <h3 class="text-lg font-black text-slate-800 mb-4">{{ formGame.id ? '编辑游戏封面与信息' : '新增游戏档案' }}</h3>
@@ -449,7 +457,7 @@
         </div>
     </div>
 
-    <!-- ================= 弹窗 3：大活动编辑/新增 ================= -->
+    <!-- ================= 弹窗 3：大活动编辑/新增 (来源支持【卡池/累充/免费】) ================= -->
     <div v-if="modals.editActivity" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-white max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
@@ -500,10 +508,14 @@
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="w-5 h-5 rounded-full bg-nikki-500 text-white text-xs font-bold flex items-center justify-center">{{ mIdx + 1 }}</span>
                                         <span class="text-xs font-black text-nikki-600">【收集模块】</span>
-                                        <div class="flex items-center bg-white rounded-lg p-0.5 border border-slate-200 text-xs">
-                                            <button @click="mod.source = 'cardPool'" class="px-2 py-0.5 rounded font-bold" :class="mod.source === 'cardPool' ? 'bg-amber-500 text-white' : 'text-slate-500'">卡池</button>
-                                            <button @click="mod.source = 'topUp'" class="px-2 py-0.5 rounded font-bold" :class="mod.source === 'topUp' ? 'bg-purple-600 text-white' : 'text-slate-500'">累充</button>
+                                        
+                                        <!-- 来源切换组件：卡池 / 累充 / 免费 三选一 -->
+                                        <div class="flex items-center bg-white rounded-lg p-0.5 border border-slate-200 text-xs shadow-xs">
+                                            <button type="button" @click="mod.source = 'cardPool'" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'cardPool' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">卡池</button>
+                                            <button type="button" @click="mod.source = 'topUp'" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'topUp' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">累充</button>
+                                            <button type="button" @click="mod.source = 'free'" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'free' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">免费</button>
                                         </div>
+
                                         <input v-model="mod.suitName" type="text" placeholder="套装/卡面名称" class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white outline-none focus:border-nikki-500">
                                     </div>
                                     <div class="flex items-center gap-2">
@@ -771,11 +783,11 @@ createApp({
             'ymzx': ['限定卡面', '主线卡', '充值']
         };
 
-        function createSuitModule(modId, suitName, count, attrTag) {
+        function createSuitModule(modId, suitName, count, attrTag, source = 'cardPool') {
             return {
                 moduleId: modId,
                 moduleCategory: 'collection',
-                source: 'cardPool',
+                source: source, // cardPool / topUp / free
                 suitName: suitName,
                 pulls: 0,
                 tags: [attrTag],
@@ -805,8 +817,8 @@ createApp({
                 note: '小王子全球跨界联动大版本，包含金鹰之眼全境隐匿能力与爱上一朵花联动共鸣。',
                 isExpanded: true,
                 modules: [
-                    createSuitModule('mod-2.10-1', '蒙尘之罪', 10, '性感'),
-                    createSuitModule('mod-2.10-2', '如果爱上一朵花', 10, '典雅')
+                    createSuitModule('mod-2.10-1', '蒙尘之罪', 10, '性感', 'cardPool'),
+                    createSuitModule('mod-2.10-2', '如果爱上一朵花', 10, '典雅', 'cardPool')
                 ]
             },
             {
@@ -819,7 +831,7 @@ createApp({
                 note: '栖林沐光·蝶影群体伴随吸虫能力。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.9-1', '花影心期', 10, '甜美')
+                    createSuitModule('mod-2.9-1', '花影心期', 10, '甜美', 'cardPool')
                 ]
             },
             {
@@ -832,9 +844,9 @@ createApp({
                 note: '镜影旋舞墙面滑行攀爬，大版本主线誓刃裁光解锁奇迹套。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.8-1', '白夜长旋舞', 10, '帅气'),
-                    createSuitModule('mod-2.8-2', '心光破晓时', 10, '典雅'),
-                    createSuitModule('mod-2.8-3', '咏赞黄昏', 10, '5星奇迹')
+                    createSuitModule('mod-2.8-1', '白夜长旋舞', 10, '帅气', 'cardPool'),
+                    createSuitModule('mod-2.8-2', '心光破晓时', 10, '典雅', 'cardPool'),
+                    createSuitModule('mod-2.8-3', '咏赞黄昏', 10, '5星奇迹', 'free')
                 ]
             },
             {
@@ -847,7 +859,7 @@ createApp({
                 note: '星河浪涌·星标位置跃迁。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.7-1', '梦是心之涟', 10, '甜美')
+                    createSuitModule('mod-2.7-1', '梦是心之涟', 10, '甜美', 'cardPool')
                 ]
             },
             {
@@ -860,7 +872,7 @@ createApp({
                 note: '寂静之籁·小动物洗护聚集互动能力。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.6-1', '黎明无声', 10, '典雅')
+                    createSuitModule('mod-2.6-1', '黎明无声', 10, '典雅', 'cardPool')
                 ]
             },
             {
@@ -873,9 +885,9 @@ createApp({
                 note: '拉姆树驱散浓雾，包含捕虫与幽灵潮汐探索能力。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.5-1', '栖骨生花', 10, '清新'),
-                    createSuitModule('mod-2.5-2', '渡者无归', 10, '性感'),
-                    createSuitModule('mod-2.5-3', '眠于花畔', 9, '甜美')
+                    createSuitModule('mod-2.5-1', '栖骨生花', 10, '清新', 'cardPool'),
+                    createSuitModule('mod-2.5-2', '渡者无归', 10, '性感', 'cardPool'),
+                    createSuitModule('mod-2.5-3', '眠于花畔', 9, '甜美', 'free')
                 ]
             },
             {
@@ -888,7 +900,7 @@ createApp({
                 note: '狩猎挽歌·同伴协战射击玩法。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.4-1', '她是不驯火', 10, '帅气')
+                    createSuitModule('mod-2.4-1', '她是不驯火', 10, '帅气', 'cardPool')
                 ]
             },
             {
@@ -901,7 +913,7 @@ createApp({
                 note: '甜霜梦境与浮空甜品能力。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.3-1', '予梦心时', 9, '甜美')
+                    createSuitModule('mod-2.3-1', '予梦心时', 9, '甜美', 'cardPool')
                 ]
             },
             {
@@ -914,8 +926,8 @@ createApp({
                 note: '万相境敦煌联动，九色神鹿飞天仙乐。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.2-1', '九色亦尘心', 10, '典雅'),
-                    createSuitModule('mod-2.2-2', '万相渡浮生', 10, '性感')
+                    createSuitModule('mod-2.2-1', '九色亦尘心', 10, '典雅', 'cardPool'),
+                    createSuitModule('mod-2.2-2', '万相渡浮生', 10, '性感', 'cardPool')
                 ]
             },
             {
@@ -928,7 +940,7 @@ createApp({
                 note: '灵兽共鸣与森息跳跃能力。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.1-1', '森之涟', 9, '清新')
+                    createSuitModule('mod-2.1-1', '森之涟', 9, '清新', 'cardPool')
                 ]
             },
             {
@@ -941,9 +953,9 @@ createApp({
                 note: '伊赞之土大版本，圣女祷歌与无限之心奇迹套解封。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-2.0-1', '隐于祷音', 10, '典雅'),
-                    createSuitModule('mod-2.0-2', '生于无瑕', 9, '清新'),
-                    createSuitModule('mod-2.0-3', '谒灵', 10, '5星奇迹')
+                    createSuitModule('mod-2.0-1', '隐于祷音', 10, '典雅', 'cardPool'),
+                    createSuitModule('mod-2.0-2', '生于无瑕', 9, '清新', 'cardPool'),
+                    createSuitModule('mod-2.0-3', '谒灵', 10, '5星奇迹', 'free')
                 ]
             },
             {
@@ -956,7 +968,7 @@ createApp({
                 note: '暗黑哥特与烛影漫步。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.11-1', '无名亦无我', 10, '帅气')
+                    createSuitModule('mod-1.11-1', '无名亦无我', 10, '帅气', 'cardPool')
                 ]
             },
             {
@@ -969,7 +981,7 @@ createApp({
                 note: '雨露自然女巫。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.10-1', '如雨坠，如花开', 10, '甜美')
+                    createSuitModule('mod-1.10-1', '如雨坠，如花开', 10, '甜美', 'cardPool')
                 ]
             },
             {
@@ -982,7 +994,7 @@ createApp({
                 note: '歌剧舞台与剧团奏鸣。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.9-1', '咏叙的旧梦', 10, '典雅')
+                    createSuitModule('mod-1.9-1', '咏叙的旧梦', 10, '典雅', 'cardPool')
                 ]
             },
             {
@@ -995,8 +1007,8 @@ createApp({
                 note: '水墨国风白龙与猫妖变幻折纸。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.8-1', '龙隐云墨间', 10, '帅气'),
-                    createSuitModule('mod-1.8-2', '缘缘长相念', 9, '甜美')
+                    createSuitModule('mod-1.8-1', '龙隐云墨间', 10, '帅气', 'cardPool'),
+                    createSuitModule('mod-1.8-2', '缘缘长相念', 9, '甜美', 'cardPool')
                 ]
             },
             {
@@ -1009,7 +1021,7 @@ createApp({
                 note: '海妖之泪与水下漫游。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.7-1', '落入泪之潮', 10, '性感')
+                    createSuitModule('mod-1.7-1', '落入泪之潮', 10, '性感', 'cardPool')
                 ]
             },
             {
@@ -1022,7 +1034,7 @@ createApp({
                 note: '自然精灵秘语。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.6-1', '仙踪绮遇', 9, '清新')
+                    createSuitModule('mod-1.6-1', '仙踪绮遇', 9, '清新', 'cardPool')
                 ]
             },
             {
@@ -1035,8 +1047,8 @@ createApp({
                 note: '冰雪探险与火鸟重力操控。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.5-1', '雪境长歌', 10, '清新'),
-                    createSuitModule('mod-1.5-2', '炽羽不渝', 10, '性感')
+                    createSuitModule('mod-1.5-1', '雪境长歌', 10, '清新', 'cardPool'),
+                    createSuitModule('mod-1.5-2', '炽羽不渝', 10, '性感', 'cardPool')
                 ]
             },
             {
@@ -1049,7 +1061,7 @@ createApp({
                 note: '木偶与妄想盛宴。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.4-1', '绯夜狂想录', 10, '帅气')
+                    createSuitModule('mod-1.4-1', '绯夜狂想录', 10, '帅气', 'cardPool')
                 ]
             },
             {
@@ -1062,7 +1074,7 @@ createApp({
                 note: '八音盒旋律能力。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.3-1', '古典乐章', 9, '典雅')
+                    createSuitModule('mod-1.3-1', '古典乐章', 9, '典雅', 'cardPool')
                 ]
             },
             {
@@ -1075,8 +1087,8 @@ createApp({
                 note: '烟火夜空跃迁与欢笑熊礼花互动。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.2-1', '缀夜希光', 10, '帅气'),
-                    createSuitModule('mod-1.2-2', '绽响黎明前', 9, '典雅')
+                    createSuitModule('mod-1.2-1', '缀夜希光', 10, '帅气', 'cardPool'),
+                    createSuitModule('mod-1.2-2', '绽响黎明前', 9, '典雅', 'cardPool')
                 ]
             },
             {
@@ -1089,7 +1101,7 @@ createApp({
                 note: '千纸鹤浮空飞越能力。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.1-1', '翩翩愿飞去', 10, '典雅')
+                    createSuitModule('mod-1.1-1', '翩翩愿飞去', 10, '典雅', 'cardPool')
                 ]
             },
             {
@@ -1102,15 +1114,15 @@ createApp({
                 note: '公测启航，滑翔飞跃与花灵跳跃。',
                 isExpanded: false,
                 modules: [
-                    createSuitModule('mod-1.0-1', '蝶屿风袭', 10, '清新'),
-                    createSuitModule('mod-1.0-2', '花漾梦萦', 9, '甜美')
+                    createSuitModule('mod-1.0-1', '蝶屿风袭', 10, '清新', 'cardPool'),
+                    createSuitModule('mod-1.0-2', '花漾梦萦', 9, '甜美', 'cardPool')
                 ]
             }
         ];
 
         const defaultActivities = { 'inikki': inikkiOfficialActivities };
 
-        const DATA_VERSION_KEY = 'gh_data_version_inikki_v6_edit_cover';
+        const DATA_VERSION_KEY = 'gh_data_version_inikki_v7_free_source';
         if (!localStorage.getItem(DATA_VERSION_KEY)) {
             localStorage.setItem('gh_activities', JSON.stringify(defaultActivities));
             localStorage.setItem('gh_games', JSON.stringify(defaultGames));
@@ -1306,7 +1318,6 @@ createApp({
             refreshIcons();
         }
 
-        // 打开编辑游戏弹窗（更换封面）
         function openEditGameModal(game) {
             formGame.value = {
                 id: game.id,
@@ -1322,7 +1333,6 @@ createApp({
             if (!formGame.value.name) return alert('请输入游戏名称！');
             
             if (formGame.value.id) {
-                // 编辑已有游戏封面
                 const g = games.value.find(item => item.id === formGame.value.id);
                 if (g) {
                     g.name = formGame.value.name;
@@ -1330,7 +1340,6 @@ createApp({
                     if (formGame.value.cover) g.cover = formGame.value.cover;
                 }
             } else {
-                // 新建游戏
                 const gid = 'g_' + Date.now();
                 games.value.push({
                     id: gid,
@@ -1369,7 +1378,7 @@ createApp({
                 formAct.value.modules.push({
                     moduleId: 'mod_' + Date.now(),
                     moduleCategory: 'collection',
-                    source: 'cardPool',
+                    source: 'cardPool', // cardPool / topUp / free
                     suitName: '',
                     pulls: 0,
                     tags: [],
