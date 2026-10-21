@@ -771,7 +771,6 @@
 <script>
 const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
-// 核心优化辅助函数：将大图片通过 Canvas 自适应无损压缩，防止撑爆 LocalStorage 和 GitHub API
 function compressImage(file, maxDimension = 1200, quality = 0.8) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -802,7 +801,6 @@ function compressImage(file, maxDimension = 1200, quality = 0.8) {
     });
 }
 
-// 核心优化辅助函数：利用 Blob + FileReader 进行流式 Base64 编码，安全承载数十兆的大数据包，不发生内存溢出
 function jsonToBase64(obj) {
     return new Promise((resolve, reject) => {
         const jsonStr = JSON.stringify(obj, null, 2);
@@ -1336,14 +1334,14 @@ createApp({
             refreshIcons();
         }
 
-        // ================= 深度优化后的 GitHub 推送逻辑 =================
+        // ================= 深度优化：GitHub 推送逻辑 =================
         async function pushToGitHub() {
             const token = (syncConfig.value.token || '').trim();
             const repo = (syncConfig.value.repo || '').trim();
             if (!token || !repo) return alert('请填写 GitHub PAT Token 和仓库名称！');
 
             syncLoading.value = true;
-            syncStatusText.value = '正在核对云端版本状态...';
+            syncStatusText.value = '正在核对云端状态...';
             localStorage.setItem('gh_token', token);
             localStorage.setItem('gh_repo', repo);
 
@@ -1358,22 +1356,20 @@ createApp({
                         'Accept': 'application/vnd.github.v3+json'
                     },
                     cache: 'no-store'
-                });
+                }).catch(() => null);
 
-                if (getRes.status === 401) {
-                    throw new Error('Token 无效或已过期 (Bad credentials)！请核对 Token 是否已勾选 repo 权限。');
-                } else if (getRes.ok) {
+                if (getRes && getRes.status === 401) {
+                    throw new Error('Token 无效或已过期 (Bad credentials)！请核对是否勾选 repo 权限。');
+                } else if (getRes && getRes.ok) {
                     const existing = await getRes.json();
                     sha = existing.sha;
                 }
 
-                syncStatusText.value = '正在打包并优化编码大数据包...';
+                syncStatusText.value = '正在打包编码数据...';
                 const payload = { games: games.value, activities: activities.value, gameTags: gameTags.value };
-                
-                // 使用原生异步流转码，解决大图片/大字符串导致的前端爆栈闪退
                 const contentEncoded = await jsonToBase64(payload);
 
-                syncStatusText.value = '正在极速同步至 GitHub 仓库...';
+                syncStatusText.value = '正在同步推送至 GitHub...';
                 const putRes = await fetch(url, {
                     method: 'PUT',
                     headers: { 
@@ -1393,15 +1389,7 @@ createApp({
                     modals.value.sync = false;
                 } else {
                     const err = await putRes.json().catch(() => ({}));
-                    if (putRes.status === 401) {
-                        throw new Error('Token 凭据校验失败 (Bad credentials)。请检查 Token 是否已失效或输入包含隐藏空格。');
-                    } else if (putRes.status === 404) {
-                        throw new Error('仓库未找到或无权访问。请确认仓库路径是否填写正确为 "用户名/仓库名"。');
-                    } else if (putRes.status === 409) {
-                        throw new Error('云端版本出现冲突（远端有更新版本）。建议先点击【从云端拉取】后再推送！');
-                    } else {
-                        throw new Error(err.message || `推送失败 (HTTP ${putRes.status})`);
-                    }
+                    throw new Error(err.message || `HTTP ${putRes.status}`);
                 }
             } catch (err) {
                 alert('推送失败: ' + err.message);
@@ -1411,7 +1399,7 @@ createApp({
             }
         }
 
-        // ================= 深度优化后的 GitHub 拉取逻辑 =================
+        // ================= 彻底修复：多源突破 1MB 限制的强力拉取逻辑 =================
         async function pullFromGitHub(silent = false) {
             const token = (syncConfig.value.token || '').trim();
             const repo = (syncConfig.value.repo || '').trim();
@@ -1422,88 +1410,128 @@ createApp({
 
             if (!silent) {
                 syncLoading.value = true;
-                syncStatusText.value = '正在从云端拉取全量数据...';
+                syncStatusText.value = '正在极速拉取数据...';
             }
-            try {
-                const url = `https://api.github.com/repos/${repo}/contents/game_timeline_data.json`;
-                
-                // 关键点：Accept 使用 raw+json 突破 1MB 大文件限制；cache: 'no-store' 解决 304 缓存不刷新
-                const res = await fetch(url, { 
-                    headers: { 
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/vnd.github.raw+json'
-                    },
-                    cache: 'no-store'
-                });
 
-                if (!res.ok) {
-                    if (res.status === 401) {
-                        throw new Error('Token 无效或已过期 (Bad credentials)！');
-                    }
-                    if (res.status === 404) {
-                        if (!silent) alert('云端暂未找到数据文件，请先点击【保存并立即推送】创建初次备份！');
-                        return;
-                    }
-                    throw new Error(`请求云端失败 (HTTP ${res.status})`);
-                }
+            let parsed = null;
+            let lastError = null;
 
-                const text = await res.text();
-                let parsed = null;
-                let data = null;
+            // 通道 1：针对公开仓库的无限制高速通道（彻底避开 1MB API 拦截）
+            const branch = 'main';
+            const rawUrls = [
+                `https://raw.githubusercontent.com/${repo}/${branch}/game_timeline_data.json?t=${Date.now()}`,
+                `https://cdn.jsdelivr.net/gh/${repo}@${branch}/game_timeline_data.json?t=${Date.now()}`
+            ];
+
+            for (const rUrl of rawUrls) {
                 try {
-                    data = JSON.parse(text);
+                    const res = await fetch(rUrl, { cache: 'no-store' });
+                    if (res.ok) {
+                        parsed = await res.json();
+                        break;
+                    }
                 } catch (e) {
-                    throw new Error('解析云端 JSON 失败: ' + e.message);
+                    lastError = e;
                 }
+            }
 
-                // 兼容 Raw JSON / 包装 JSON / Git Blob 回退三种场景
-                if (data && (data.games || data.activities || data.gameTags)) {
-                    parsed = data;
-                } else if (data && data.content) {
-                    const rawJson = decodeURIComponent(escape(atob(data.content.replace(/\s/g, ''))));
-                    parsed = JSON.parse(rawJson);
-                } else if (data && data.git_url) {
-                    const blobRes = await fetch(data.git_url, {
+            // 通道 2：如果直连未成功（或为私有仓库），走 GitHub Git Trees/Blobs 专用大文件接口
+            if (!parsed) {
+                try {
+                    // 先通过 commits/main 探测树，绕过 contents 接口的 1MB 拦截
+                    const commitRes = await fetch(`https://api.github.com/repos/${repo}/commits/${branch}`, {
                         headers: {
                             'Authorization': `Bearer ${token}`,
-                            'Accept': 'application/vnd.github.raw'
+                            'Accept': 'application/vnd.github.v3+json'
                         },
                         cache: 'no-store'
                     });
-                    if (blobRes.ok) {
-                        parsed = await blobRes.json();
-                    } else {
-                        throw new Error('通过 Git Blob 接口获取大文件失败');
+
+                    if (commitRes.ok) {
+                        const commitData = await commitRes.json();
+                        const treeUrl = commitData.commit.tree.url;
+                        const treeRes = await fetch(treeUrl, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Accept': 'application/vnd.github.v3+json'
+                            }
+                        });
+
+                        if (treeRes.ok) {
+                            const treeData = await treeRes.json();
+                            const targetBlob = (treeData.tree || []).find(f => f.path === 'game_timeline_data.json');
+                            if (targetBlob && targetBlob.url) {
+                                const blobRes = await fetch(targetBlob.url, {
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                        'Accept': 'application/vnd.github.raw'
+                                    },
+                                    cache: 'no-store'
+                                });
+                                if (blobRes.ok) {
+                                    parsed = await blobRes.json();
+                                }
+                            }
+                        }
                     }
-                } else {
-                    throw new Error('云端数据格式不符合预期');
+                } catch (e) {
+                    lastError = e;
                 }
-
-                if (parsed) {
-                    if (parsed.games) games.value = parsed.games;
-                    if (parsed.activities) activities.value = parsed.activities;
-                    if (parsed.gameTags) gameTags.value = parsed.gameTags;
-
-                    if (activeGame.value) {
-                        activeGame.value = games.value.find(g => g.id === activeGame.value.id) || activeGame.value;
-                    }
-
-                    persistLocal();
-
-                    if (!silent) {
-                        alert('⬇️ 数据已成功从云端同步到当前设备！');
-                        modals.value.sync = false;
-                    }
-                }
-            } catch (err) {
-                if (!silent) alert('拉取失败: ' + err.message);
-            } finally {
-                if (!silent) {
-                    syncLoading.value = false;
-                    syncStatusText.value = '';
-                }
-                refreshIcons();
             }
+
+            // 通道 3：常规 Contents API 兜底
+            if (!parsed) {
+                try {
+                    const url = `https://api.github.com/repos/${repo}/contents/game_timeline_data.json`;
+                    const res = await fetch(url, { 
+                        headers: { 
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/vnd.github.raw+json'
+                        },
+                        cache: 'no-store'
+                    });
+
+                    if (res.ok) {
+                        const text = await res.text();
+                        const data = JSON.parse(text);
+                        if (data.content) {
+                            const rawJson = decodeURIComponent(escape(atob(data.content.replace(/\s/g, ''))));
+                            parsed = JSON.parse(rawJson);
+                        } else {
+                            parsed = data;
+                        }
+                    }
+                } catch (e) {
+                    lastError = e;
+                }
+            }
+
+            if (parsed && (parsed.games || parsed.activities)) {
+                if (parsed.games) games.value = parsed.games;
+                if (parsed.activities) activities.value = parsed.activities;
+                if (parsed.gameTags) gameTags.value = parsed.gameTags;
+
+                if (activeGame.value) {
+                    activeGame.value = games.value.find(g => g.id === activeGame.value.id) || activeGame.value;
+                }
+
+                persistLocal();
+
+                if (!silent) {
+                    alert('⬇️ 数据已成功从云端同步到当前设备！');
+                    modals.value.sync = false;
+                }
+            } else {
+                if (!silent) {
+                    alert('拉取失败：未找到有效数据或网络受阻，请确保云端仓库有上传记录。');
+                }
+            }
+
+            if (!silent) {
+                syncLoading.value = false;
+                syncStatusText.value = '';
+            }
+            refreshIcons();
         }
 
         function refreshIcons() {
