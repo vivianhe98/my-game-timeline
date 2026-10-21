@@ -8354,6 +8354,274 @@
           }
         ]
       }
+    ],
+    "ymzx": [
+      {
+        "id": "act_1792596651381",
+        "title": "共举昨日之酒",
+        "startDate": "2026-09-10",
+        "endDate": "2026-10-20",
+        "bannerUrl": "",
+        "note": "",
+        "modules": [
+          {
+            "moduleId": "mod_1792596563913",
+            "moduleCategory": "collection",
+            "source": "cardPool",
+            "suitName": "",
+            "pulls": 0,
+            "tags": [],
+            "innerNote": "",
+            "totalItems": 10,
+            "collectedItems": 0,
+            "cropRows": 3,
+            "cropCols": 4,
+            "showGridConfig": false,
+            "items": [
+              {
+                "id": 1,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 2,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 3,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 4,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 5,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 6,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 7,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 8,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 9,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 10,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              }
+            ]
+          }
+        ],
+        "gameId": "ymzx",
+        "isExpanded": true
+      },
+      {
+        "id": "act_1792596510717",
+        "title": "美丽新世界",
+        "startDate": "2026-07-30",
+        "endDate": "2026-09-08",
+        "bannerUrl": "",
+        "note": "",
+        "modules": [
+          {
+            "moduleId": "mod_1792596423661",
+            "moduleCategory": "collection",
+            "source": "cardPool",
+            "suitName": "",
+            "pulls": 0,
+            "tags": [],
+            "innerNote": "",
+            "totalItems": 10,
+            "collectedItems": 0,
+            "cropRows": 3,
+            "cropCols": 4,
+            "showGridConfig": false,
+            "items": [
+              {
+                "id": 1,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 2,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 3,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 4,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 5,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 6,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 7,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 8,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 9,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 10,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              }
+            ]
+          }
+        ],
+        "gameId": "ymzx",
+        "isExpanded": true
+      },
+      {
+        "id": "act_1792596420847",
+        "title": "颠倒失乐园",
+        "startDate": "2026-06-18",
+        "endDate": "2026-07-28",
+        "bannerUrl": "",
+        "note": "",
+        "modules": [
+          {
+            "moduleId": "mod_1792596007161",
+            "moduleCategory": "collection",
+            "source": "cardPool",
+            "suitName": "",
+            "pulls": 0,
+            "tags": [
+              "限定卡面"
+            ],
+            "innerNote": "",
+            "totalItems": 10,
+            "collectedItems": 0,
+            "cropRows": 3,
+            "cropCols": 4,
+            "showGridConfig": false,
+            "items": [
+              {
+                "id": 1,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 2,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 3,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 4,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 5,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 6,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 7,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 8,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 9,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              },
+              {
+                "id": 10,
+                "name": "",
+                "owned": false,
+                "imgUrl": ""
+              }
+            ]
+          }
+        ],
+        "gameId": "ymzx",
+        "isExpanded": true
+      }
     ]
   },
   "gameTags": {
