@@ -43,20 +43,33 @@
     </script>
 
     <style>
+        /* 动态高清背景层（清晰度提升） */
         .bg-dynamic-blur {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: -1;
+            z-index: -2;
             background-size: cover;
             background-position: center top;
-            filter: blur(40px) brightness(0.85);
-            transform: scale(1.15);
+            filter: blur(14px) brightness(0.92);
+            transform: scale(1.08);
             transition: background-image 0.8s ease-in-out;
         }
 
+        /* 背景微弱暗角遮罩：防止亮色壁纸洗白界面对比度 */
+        .bg-vignette-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.45) 100%),
+                        linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(15,23,42,0.3) 100%);
+            pointer-events: none;
+        }
+
+        /* 隐藏滚动条 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+        /* 鱼骨连接斜线 (竖向) */
         .bone-left::before {
             content: ''; position: absolute; top: 28px; right: -28px;
             width: 28px; height: 2px; background: rgba(244, 63, 110, 0.4);
@@ -68,6 +81,7 @@
             transform: rotate(15deg); transform-origin: right;
         }
 
+        /* 鱼骨连接竖线 (横向卷轴) */
         .bone-top::after {
             content: ''; position: absolute; bottom: -24px; left: 50%;
             width: 2px; height: 24px; background: rgba(244, 63, 110, 0.4);
@@ -79,7 +93,7 @@
             transform: translateX(-50%);
         }
 
-        /* 完美收集金色图章动效 */
+        /* 完美收集金色图章 */
         .stamp-badge {
             transform: rotate(-12deg);
             border: 2px solid #f59e0b;
@@ -87,12 +101,33 @@
             background: rgba(254, 243, 199, 0.95);
             box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
         }
+
+        /* 超长列表性能加速：浏览器跳过视口外重排渲染 */
+        .version-card {
+            content-visibility: auto;
+            contain-intrinsic-size: 240px;
+        }
+
+        /* 卡片折叠/展开平滑抽屉过渡动效 (CSS Grid 弹性渐变) */
+        .drawer-accordion {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.36s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .drawer-accordion.expanded {
+            grid-template-rows: 1fr;
+        }
+        .drawer-content {
+            overflow: hidden;
+        }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col font-sans select-none antialiased bg-slate-50/50">
 
 <div id="app" class="flex-1 flex flex-col relative min-h-screen">
+    <!-- 背景层 -->
     <div class="bg-dynamic-blur" :style="{ backgroundImage: currentBackgroundUrl ? `url(${currentBackgroundUrl})` : 'none' }"></div>
+    <div class="bg-vignette-overlay"></div>
 
     <!-- 顶部常驻导航 -->
     <header class="sticky top-0 z-50 backdrop-blur-md bg-white/75 border-b border-white/60 px-4 md:px-8 py-3 flex items-center justify-between shadow-sm">
@@ -204,7 +239,7 @@
                                 {{ activeGame.type === 'suit' ? '换装部件模式' : '乙游卡面模式' }}
                             </span>
                         </div>
-                        <p class="text-xs text-slate-500 mt-0.5">💡 提示：【单击】预览大图，【双击】切换打卡，右上角支持一键全齐！</p>
+                        <p class="text-xs text-slate-500 mt-0.5">💡 提示：【单击】立即打卡，【长按 0.5 秒】放大预览部件大图！</p>
                     </div>
                 </div>
 
@@ -276,9 +311,9 @@
                         <div class="w-[calc(100%-3rem)] ml-12 md:ml-0 md:w-[46%]"
                             :class="[ idx % 2 === 0 ? 'bone-left' : 'bone-right' ]">
                             
-                            <div class="bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass overflow-hidden hover:shadow-xl transition-all duration-300 relative">
+                            <div class="version-card bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass overflow-hidden hover:shadow-xl transition-all duration-300 relative">
                                 
-                                <!-- 完美收集金色徽章 -->
+                                <!-- 完美收集金色勋章 -->
                                 <div v-if="getActivityStats(act).total > 0 && getActivityStats(act).owned === getActivityStats(act).total" 
                                     class="absolute top-2.5 right-2.5 stamp-badge text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider z-20 flex items-center gap-1">
                                     <span>★</span> 完美收集
@@ -309,103 +344,111 @@
                                         </div>
                                     </div>
 
-                                    <div v-show="act.isExpanded" class="pt-3 border-t border-slate-100 flex flex-col gap-3">
-                                        <div v-for="mod in act.modules" :key="mod.moduleId" class="bg-slate-50/90 rounded-xl p-3 border border-slate-200/70">
-                                            
-                                            <!-- 【收集子模块】 -->
-                                            <template v-if="mod.moduleCategory === 'collection'">
-                                                <div class="flex items-center justify-between mb-2">
-                                                    <div class="flex items-center gap-1.5 flex-wrap">
-                                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-xs"
-                                                            :class="{
-                                                                'bg-amber-500': mod.source === 'cardPool',
-                                                                'bg-purple-600': mod.source === 'topUp',
-                                                                'bg-emerald-500': mod.source === 'free'
-                                                            }">
-                                                            {{ mod.source === 'cardPool' ? '卡池' : (mod.source === 'topUp' ? '累充' : '免费') }}
-                                                        </span>
-                                                        <span class="text-xs font-bold text-slate-800">{{ mod.suitName || '未命名套装' }}</span>
-                                                    </div>
+                                    <!-- 平滑抽屉容器 -->
+                                    <div class="drawer-accordion" :class="{ 'expanded': act.isExpanded }">
+                                        <div class="drawer-content">
+                                            <div class="pt-3 border-t border-slate-100 flex flex-col gap-3">
+                                                <div v-for="mod in act.modules" :key="mod.moduleId" class="bg-slate-50/90 rounded-xl p-3 border border-slate-200/70">
                                                     
-                                                    <!-- 一键全选/重置按钮组 -->
-                                                    <div class="flex items-center gap-1.5">
-                                                        <span class="text-[10px] font-bold text-slate-400 mr-1">{{ mod.collectedItems || 0 }} / {{ mod.totalItems || 0 }}</span>
-                                                        <button @click="batchToggleItems(mod, true)" class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold text-[10px] transition">全齐</button>
-                                                        <button @click="batchToggleItems(mod, false)" class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 text-[10px] transition">重置</button>
-                                                    </div>
-                                                </div>
-
-                                                <div v-if="mod.tags && mod.tags.length" class="flex flex-wrap gap-1 mb-2">
-                                                    <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-nikki-100 text-nikki-600 font-medium">#{{ t }}</span>
-                                                </div>
-
-                                                <!-- 部件图标墙 -->
-                                                <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-2 mb-2">
-                                                    <div v-for="item in mod.items" :key="item.id" 
-                                                        @click="handleItemClick(item)" 
-                                                        @dblclick="toggleItemOwned(item, mod)"
-                                                        class="flex flex-col items-center w-14 cursor-pointer group"
-                                                        :title="item.name ? `${item.name}（单击预览，双击打卡）` : '单击预览，双击打卡'">
-                                                        
-                                                        <div class="w-12 h-12 rounded-xl border-2 overflow-hidden relative transition-all duration-200"
-                                                            :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200 shadow-sm scale-105' : 'border-slate-200 opacity-40 grayscale group-hover:opacity-75'">
-                                                            <img v-if="item.imgUrl" :src="item.imgUrl" loading="lazy" class="w-full h-full object-cover" />
-                                                            <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-500 font-bold">#{{ item.id }}</div>
-                                                            <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-1 font-bold">✓</div>
-                                                        </div>
-
-                                                        <span class="text-[9px] text-slate-600 font-medium mt-1 truncate max-w-full text-center" :class="{ 'h-3': !item.name }">
-                                                            {{ item.name || '' }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                <div v-if="mod.innerNote" class="text-[11px] text-slate-500 bg-white/80 p-2 rounded-lg border border-slate-100">
-                                                    📝 {{ mod.innerNote }}
-                                                </div>
-                                            </template>
-
-                                            <!-- 【剧情子模块】 -->
-                                            <template v-else>
-                                                <div class="flex items-center justify-between mb-2">
-                                                    <div class="flex items-center gap-1.5">
-                                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-xs"
-                                                            :class="mod.storySource === 'main' ? 'bg-sky-500' : 'bg-emerald-600'">
-                                                            {{ mod.storySource === 'main' ? '主线' : '活动' }}
-                                                        </span>
-                                                        <span class="text-xs font-bold text-slate-800">{{ mod.title || '剧情复盘记录' }}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div v-if="mod.storyNote" class="text-xs text-slate-600 bg-white/90 p-2 rounded-lg border border-slate-100 mb-2 whitespace-pre-line leading-relaxed">
-                                                    {{ mod.storyNote }}
-                                                </div>
-
-                                                <div class="space-y-2">
-                                                    <div v-if="mod.charImages && mod.charImages.length">
-                                                        <div class="text-[10px] font-bold text-slate-400 mb-1">人物相册 ({{ mod.charImages.length }})</div>
-                                                        <div class="flex flex-wrap gap-1.5">
-                                                            <div v-for="img in mod.charImages" :key="img.id" @click="previewFullImage(img.url, img.name)" 
-                                                                class="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs">
-                                                                <img :src="img.url" loading="lazy" class="w-full h-full object-cover">
-                                                                <div v-if="img.name" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center truncate px-0.5">{{ img.name }}</div>
+                                                    <!-- 【收集子模块】 -->
+                                                    <template v-if="mod.moduleCategory === 'collection'">
+                                                        <div class="flex items-center justify-between mb-2">
+                                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-xs"
+                                                                    :class="{
+                                                                        'bg-amber-500': mod.source === 'cardPool',
+                                                                        'bg-purple-600': mod.source === 'topUp',
+                                                                        'bg-emerald-500': mod.source === 'free'
+                                                                    }">
+                                                                    {{ mod.source === 'cardPool' ? '卡池' : (mod.source === 'topUp' ? '累充' : '免费') }}
+                                                                </span>
+                                                                <span class="text-xs font-bold text-slate-800">{{ mod.suitName || '未命名套装' }}</span>
+                                                            </div>
+                                                            
+                                                            <div class="flex items-center gap-1.5">
+                                                                <span class="text-[10px] font-bold text-slate-400 mr-1">{{ mod.collectedItems || 0 }} / {{ mod.totalItems || 0 }}</span>
+                                                                <button @click="batchToggleItems(mod, true)" class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold text-[10px] transition">全齐</button>
+                                                                <button @click="batchToggleItems(mod, false)" class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 text-[10px] transition">重置</button>
                                                             </div>
                                                         </div>
-                                                    </div>
 
-                                                    <div v-if="mod.sceneImages && mod.sceneImages.length">
-                                                        <div class="text-[10px] font-bold text-slate-400 mb-1">剧情名场面CG ({{ mod.sceneImages.length }})</div>
-                                                        <div class="flex flex-wrap gap-1.5">
-                                                            <div v-for="img in mod.sceneImages" :key="img.id" @click="previewFullImage(img.url, img.name)"
-                                                                class="w-20 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs">
-                                                                <img :src="img.url" loading="lazy" class="w-full h-full object-cover">
-                                                                <div v-if="img.name" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center truncate px-0.5">{{ img.name }}</div>
+                                                        <div v-if="mod.tags && mod.tags.length" class="flex flex-wrap gap-1 mb-2">
+                                                            <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-nikki-100 text-nikki-600 font-medium">#{{ t }}</span>
+                                                        </div>
+
+                                                        <!-- 部件图标墙（点亮默认排在前面，单击打卡，长按0.5s预览） -->
+                                                        <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-2 mb-2">
+                                                            <div v-for="item in getSortedItems(mod)" :key="item.id" 
+                                                                @mousedown="handlePressStart(item, mod)"
+                                                                @mouseup="handlePressEnd(item, mod)"
+                                                                @mouseleave="handlePressCancel"
+                                                                @touchstart.passive="handlePressStart(item, mod)"
+                                                                @touchend="handlePressEnd(item, mod)"
+                                                                @touchcancel="handlePressCancel"
+                                                                class="flex flex-col items-center w-14 cursor-pointer group select-none"
+                                                                :title="item.name ? `${item.name}（单击打卡，长按预览）` : '单击打卡，长按预览'">
+                                                                
+                                                                <div class="w-12 h-12 rounded-xl border-2 overflow-hidden relative transition-all duration-200"
+                                                                    :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200 shadow-sm scale-105' : 'border-slate-200 opacity-40 grayscale group-hover:opacity-75'">
+                                                                    <img v-if="item.imgUrl" :src="item.imgUrl" loading="lazy" class="w-full h-full object-cover pointer-events-none" />
+                                                                    <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-500 font-bold">#{{ item.id }}</div>
+                                                                    <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-1 font-bold">✓</div>
+                                                                </div>
+
+                                                                <span class="text-[9px] text-slate-600 font-medium mt-1 truncate max-w-full text-center" :class="{ 'h-3': !item.name }">
+                                                                    {{ item.name || '' }}
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </div>
-                                            </template>
 
+                                                        <div v-if="mod.innerNote" class="text-[11px] text-slate-500 bg-white/80 p-2 rounded-lg border border-slate-100">
+                                                            📝 {{ mod.innerNote }}
+                                                        </div>
+                                                    </template>
+
+                                                    <!-- 【剧情子模块】 -->
+                                                    <template v-else>
+                                                        <div class="flex items-center justify-between mb-2">
+                                                            <div class="flex items-center gap-1.5">
+                                                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-xs"
+                                                                    :class="mod.storySource === 'main' ? 'bg-sky-500' : 'bg-emerald-600'">
+                                                                    {{ mod.storySource === 'main' ? '主线' : '活动' }}
+                                                                </span>
+                                                                <span class="text-xs font-bold text-slate-800">{{ mod.title || '剧情复盘记录' }}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div v-if="mod.storyNote" class="text-xs text-slate-600 bg-white/90 p-2 rounded-lg border border-slate-100 mb-2 whitespace-pre-line leading-relaxed">
+                                                            {{ mod.storyNote }}
+                                                        </div>
+
+                                                        <div class="space-y-2">
+                                                            <div v-if="mod.charImages && mod.charImages.length">
+                                                                <div class="text-[10px] font-bold text-slate-400 mb-1">人物相册 ({{ mod.charImages.length }})</div>
+                                                                <div class="flex flex-wrap gap-1.5">
+                                                                    <div v-for="img in mod.charImages" :key="img.id" @click="previewFullImage(img.url, img.name)" 
+                                                                        class="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs">
+                                                                        <img :src="img.url" loading="lazy" class="w-full h-full object-cover">
+                                                                        <div v-if="img.name" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center truncate px-0.5">{{ img.name }}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div v-if="mod.sceneImages && mod.sceneImages.length">
+                                                                <div class="text-[10px] font-bold text-slate-400 mb-1">剧情名场面CG ({{ mod.sceneImages.length }})</div>
+                                                                <div class="flex flex-wrap gap-1.5">
+                                                                    <div v-for="img in mod.sceneImages" :key="img.id" @click="previewFullImage(img.url, img.name)" 
+                                                                        class="w-20 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs">
+                                                                        <img :src="img.url" loading="lazy" class="w-full h-full object-cover">
+                                                                        <div v-if="img.name" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center truncate px-0.5">{{ img.name }}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -420,8 +463,8 @@
                 </div>
             </div>
 
-            <!-- 排版 B：横向滚动卷轴 -->
-            <div v-else class="flex-1 overflow-x-auto no-scrollbar py-12 relative flex items-center">
+            <!-- 排版 B：横向滚动卷轴（支持鼠标滚轮横移） -->
+            <div v-else @wheel="handleHorizontalWheel" class="flex-1 overflow-x-auto no-scrollbar py-12 relative flex items-center">
                 <div class="absolute left-0 right-0 top-1/2 h-1 bg-gradient-to-r from-nikki-400 via-dream-purple to-slate-200 transform -translate-y-1/2 shadow-glow min-w-[1200px]"></div>
 
                 <div class="flex gap-16 px-10 relative min-w-max items-center h-[560px]">
@@ -432,7 +475,7 @@
                         <div class="absolute left-1/2 w-4 h-4 rounded-full bg-white border-4 border-nikki-500 shadow-md transform -translate-x-1/2 z-10"
                             :class="[ idx % 2 === 0 ? 'bottom-[-32px]' : 'top-[-32px]' ]"></div>
 
-                        <div class="w-full bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass overflow-hidden hover:shadow-xl transition-all duration-300 relative">
+                        <div class="version-card w-full bg-white/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass overflow-hidden hover:shadow-xl transition-all duration-300 relative">
                             
                             <div v-if="getActivityStats(act).total > 0 && getActivityStats(act).owned === getActivityStats(act).total" 
                                 class="absolute top-2.5 right-2.5 stamp-badge text-[9px] font-black px-2 py-0.5 rounded-full uppercase z-20">
@@ -510,7 +553,6 @@
                 <button @click="modals.stats = false" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
 
-            <!-- 数据概览栅格 -->
             <div class="grid grid-cols-3 gap-3 mb-5">
                 <div class="bg-slate-50 p-3 rounded-2xl text-center border border-slate-100">
                     <div class="text-[11px] text-slate-400">累计投入抽数</div>
@@ -526,7 +568,6 @@
                 </div>
             </div>
 
-            <!-- 来源分布条形图 -->
             <div class="mb-5 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <h4 class="text-xs font-bold text-slate-600 mb-3">📦 套装来源分布与抽数消耗</h4>
                 <div class="space-y-2.5 text-xs">
@@ -560,7 +601,6 @@
                 </div>
             </div>
 
-            <!-- 属性/标签分布 -->
             <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <h4 class="text-xs font-bold text-slate-600 mb-2">🏷️ 核心属性/标签收录占比</h4>
                 <div class="flex flex-wrap gap-2">
@@ -605,26 +645,26 @@
         </div>
     </div>
 
-    <!-- ================= 弹窗 4：大活动编辑/新增 ================= -->
+    <!-- ================= 弹窗 4：大活动编辑/新增 (支持拖拽排序 + 草稿防丢失) ================= -->
     <div v-if="modals.editActivity" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-white max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-black text-slate-800">{{ formAct.id ? '编辑版本活动' : '新增版本活动' }}</h3>
-                <button @click="modals.editActivity = false" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button @click="tryCloseEditModal" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
 
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">活动/版本主标题</label>
-                        <input v-model="formAct.title" type="text" placeholder="例如：2.10 金羽的裁决" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-nikki-500">
+                        <input v-model="formAct.title" @input="markDraftDirty" type="text" placeholder="例如：2.10 金羽的裁决" class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-nikki-500">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">时间跨度 (起止日期)</label>
                         <div class="flex items-center gap-2">
-                            <input v-model="formAct.startDate" type="date" class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs">
+                            <input v-model="formAct.startDate" @input="markDraftDirty" type="date" class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs">
                             <span class="text-xs text-slate-400">至</span>
-                            <input v-model="formAct.endDate" type="date" class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs">
+                            <input v-model="formAct.endDate" @input="markDraftDirty" type="date" class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs">
                         </div>
                     </div>
                 </div>
@@ -635,9 +675,13 @@
                     <img v-if="formAct.bannerUrl" :src="formAct.bannerUrl" class="h-28 w-full object-cover rounded-xl mt-2 border">
                 </div>
 
+                <!-- 模块管理区域（支持拖拽自由排序） -->
                 <div class="border-t border-slate-100 pt-4">
                     <div class="flex items-center justify-between mb-3">
-                        <h4 class="text-sm font-black text-slate-800">套装/子模块配置</h4>
+                        <div class="flex items-center gap-1.5">
+                            <h4 class="text-sm font-black text-slate-800">套装/子模块配置</h4>
+                            <span class="text-[10px] text-slate-400 font-normal">（拖拽左侧手柄自由调序）</span>
+                        </div>
                         <div class="flex gap-2">
                             <button @click="addSubModule('collection')" class="px-2.5 py-1 rounded-full text-xs font-bold bg-nikki-100 text-nikki-600 hover:bg-nikki-200 flex items-center gap-1">
                                 <i data-lucide="shirt" class="w-3.5 h-3.5"></i> + 收集子模块
@@ -649,32 +693,40 @@
                     </div>
 
                     <div class="space-y-4">
-                        <div v-for="(mod, mIdx) in formAct.modules" :key="mod.moduleId" class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                        <div v-for="(mod, mIdx) in formAct.modules" :key="mod.moduleId" 
+                            draggable="true"
+                            @dragstart="onModDragStart(mIdx)"
+                            @dragover.prevent
+                            @drop="onModDrop(mIdx)"
+                            class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 transition shadow-xs">
                             
                             <template v-if="mod.moduleCategory === 'collection'">
                                 <div class="flex items-center justify-between mb-3">
                                     <div class="flex items-center gap-2 flex-wrap">
+                                        <!-- 拖拽把手图标 -->
+                                        <div class="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-700" title="按住拖拽排序">
+                                            <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                                        </div>
                                         <span class="w-5 h-5 rounded-full bg-nikki-500 text-white text-xs font-bold flex items-center justify-center">{{ mIdx + 1 }}</span>
                                         <span class="text-xs font-black text-nikki-600">【收集模块】</span>
                                         
                                         <div class="flex items-center bg-white rounded-lg p-0.5 border border-slate-200 text-xs shadow-xs">
-                                            <button type="button" @click="mod.source = 'cardPool'" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'cardPool' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">卡池</button>
-                                            <button type="button" @click="mod.source = 'topUp'" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'topUp' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">累充</button>
-                                            <button type="button" @click="mod.source = 'free'" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'free' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">免费</button>
+                                            <button type="button" @click="mod.source = 'cardPool'; markDraftDirty()" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'cardPool' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">卡池</button>
+                                            <button type="button" @click="mod.source = 'topUp'; markDraftDirty()" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'topUp' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">累充</button>
+                                            <button type="button" @click="mod.source = 'free'; markDraftDirty()" class="px-2 py-0.5 rounded font-bold transition" :class="mod.source === 'free' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'">免费</button>
                                         </div>
 
-                                        <input v-model="mod.suitName" type="text" placeholder="套装/卡面名称" class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white outline-none focus:border-nikki-500">
+                                        <input v-model="mod.suitName" @input="markDraftDirty" type="text" placeholder="套装/卡面名称" class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white outline-none focus:border-nikki-500">
                                     </div>
                                     
-                                    <!-- 抽数快捷增加步进器 -->
                                     <div class="flex items-center gap-1.5">
                                         <label class="text-xs text-slate-500">抽数:</label>
                                         <button type="button" @click="adjustPulls(mod, -10)" class="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">-10</button>
                                         <button type="button" @click="adjustPulls(mod, -1)" class="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">-1</button>
-                                        <input v-model.number="mod.pulls" type="number" min="0" class="w-14 px-1.5 py-1 rounded-lg border border-slate-200 text-xs bg-white text-center font-bold">
+                                        <input v-model.number="mod.pulls" @input="markDraftDirty" type="number" min="0" class="w-14 px-1.5 py-1 rounded-lg border border-slate-200 text-xs bg-white text-center font-bold">
                                         <button type="button" @click="adjustPulls(mod, 1)" class="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">+1</button>
                                         <button type="button" @click="adjustPulls(mod, 10)" class="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">+10</button>
-                                        <button @click="formAct.modules.splice(mIdx, 1)" class="text-rose-400 hover:text-rose-600 text-xs ml-2">删除</button>
+                                        <button @click="formAct.modules.splice(mIdx, 1); markDraftDirty()" class="text-rose-400 hover:text-rose-600 text-xs ml-2">删除</button>
                                     </div>
                                 </div>
 
@@ -685,7 +737,7 @@
                                     </div>
                                     <div class="flex flex-wrap gap-1.5">
                                         <button v-for="tag in currentGlobalTags" :key="tag" 
-                                            @click="toggleModTag(mod, tag)"
+                                            @click="toggleModTag(mod, tag); markDraftDirty()"
                                             class="px-2 py-0.5 rounded-full text-[10px] font-medium transition"
                                             :class="(mod.tags || []).includes(tag) ? 'bg-nikki-500 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">
                                             #{{ tag }}
@@ -723,17 +775,23 @@
                                     </div>
 
                                     <div class="flex items-center justify-between pt-2 pb-1 border-t border-slate-100">
-                                        <span class="text-[11px] font-bold text-slate-600">部件列表 (当前共 {{ mod.items?.length || 0 }} 件)：</span>
+                                        <span class="text-[11px] font-bold text-slate-600">部件列表 (当前共 {{ mod.items?.length || 0 }} 件，支持拖拽排序)：</span>
                                         <div class="flex gap-2">
-                                            <button type="button" @click="batchToggleItems(mod, true)" class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold text-[10px]">一键全选拥有</button>
+                                            <button type="button" @click="batchToggleItems(mod, true)" class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold text-[10px]">一键全选</button>
                                             <button type="button" @click="addSingleItem(mod)" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-nikki-100 text-nikki-600 hover:bg-nikki-200 flex items-center gap-1">
                                                 + 添加单个部件
                                             </button>
                                         </div>
                                     </div>
 
+                                    <!-- 单个部件卡片列表（支持拖拽排序） -->
                                     <div v-if="mod.items && mod.items.length" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 pt-1">
-                                        <div v-for="(item, itemIdx) in mod.items" :key="item.id" class="flex flex-col items-center bg-slate-50 p-1.5 rounded-xl border border-slate-200/60 relative group">
+                                        <div v-for="(item, itemIdx) in mod.items" :key="item.id" 
+                                            draggable="true"
+                                            @dragstart="onItemDragStart(mod, itemIdx)"
+                                            @dragover.prevent
+                                            @drop="onItemDrop(mod, itemIdx)"
+                                            class="flex flex-col items-center bg-slate-50 p-1.5 rounded-xl border border-slate-200/60 relative group cursor-move">
                                             
                                             <button type="button" @click="removeSingleItem(mod, itemIdx)" 
                                                 title="删除该部件" 
@@ -743,7 +801,7 @@
 
                                             <div class="w-12 h-12 rounded-lg border-2 overflow-hidden relative mb-1 cursor-pointer"
                                                 :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200' : 'border-slate-200 opacity-60'"
-                                                @click="item.owned = !item.owned"
+                                                @click="item.owned = !item.owned; markDraftDirty()"
                                                 title="点击切换拥有状态">
                                                 <img v-if="item.imgUrl" :src="item.imgUrl" loading="lazy" class="w-full h-full object-cover">
                                                 <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-500 font-bold">#{{ item.id }}</div>
@@ -755,7 +813,7 @@
                                                 <input type="file" accept="image/*" @change="e => handleSingleItemImage(e, item)" class="hidden">
                                             </label>
 
-                                            <input v-model="item.name" type="text" placeholder="部件名(空)" class="w-full px-1 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-nikki-500">
+                                            <input v-model="item.name" @input="markDraftDirty" type="text" placeholder="部件名(空)" class="w-full px-1 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-nikki-500">
                                         </div>
                                     </div>
                                     <div v-else class="text-center py-4 text-slate-400 text-xs">暂无部件，点击上方【+ 添加单个部件】或上传长截图</div>
@@ -763,27 +821,30 @@
 
                                 <div>
                                     <label class="block text-[11px] font-bold text-slate-400 mb-1">子模块内部备注</label>
-                                    <input v-model="mod.innerNote" type="text" placeholder="记录心得..." class="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs outline-none bg-white focus:border-nikki-500">
+                                    <input v-model="mod.innerNote" @input="markDraftDirty" type="text" placeholder="记录心得..." class="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs outline-none bg-white focus:border-nikki-500">
                                 </div>
                             </template>
 
                             <template v-else>
                                 <div class="flex items-center justify-between mb-3">
                                     <div class="flex items-center gap-2 flex-wrap">
+                                        <div class="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-700" title="按住拖拽排序">
+                                            <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                                        </div>
                                         <span class="w-5 h-5 rounded-full bg-dream-purple text-white text-xs font-bold flex items-center justify-center">{{ mIdx + 1 }}</span>
                                         <span class="text-xs font-black text-dream-purple">【剧情模块】</span>
                                         <div class="flex items-center bg-white rounded-lg p-0.5 border border-slate-200 text-xs">
-                                            <button @click="mod.storySource = 'main'" class="px-2 py-0.5 rounded font-bold" :class="mod.storySource === 'main' ? 'bg-sky-500 text-white' : 'text-slate-500'">主线</button>
-                                            <button @click="mod.storySource = 'event'" class="px-2 py-0.5 rounded font-bold" :class="mod.storySource === 'event' ? 'bg-emerald-600 text-white' : 'text-slate-500'">活动</button>
+                                            <button @click="mod.storySource = 'main'; markDraftDirty()" class="px-2 py-0.5 rounded font-bold" :class="mod.storySource === 'main' ? 'bg-sky-500 text-white' : 'text-slate-500'">主线</button>
+                                            <button @click="mod.storySource = 'event'; markDraftDirty()" class="px-2 py-0.5 rounded font-bold" :class="mod.storySource === 'event' ? 'bg-emerald-600 text-white' : 'text-slate-500'">活动</button>
                                         </div>
-                                        <input v-model="mod.title" type="text" placeholder="剧情标题/阶段" class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white outline-none focus:border-dream-purple">
+                                        <input v-model="mod.title" @input="markDraftDirty" type="text" placeholder="剧情标题/阶段" class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white outline-none focus:border-dream-purple">
                                     </div>
-                                    <button @click="formAct.modules.splice(mIdx, 1)" class="text-rose-400 hover:text-rose-600 text-xs">删除</button>
+                                    <button @click="formAct.modules.splice(mIdx, 1); markDraftDirty()" class="text-rose-400 hover:text-rose-600 text-xs">删除</button>
                                 </div>
 
                                 <div class="mb-3">
                                     <label class="block text-[11px] font-bold text-slate-400 mb-1">剧情故事记录与心得</label>
-                                    <textarea v-model="mod.storyNote" placeholder="记录高光剧情、台词..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs h-20 outline-none bg-white focus:border-dream-purple"></textarea>
+                                    <textarea v-model="mod.storyNote" @input="markDraftDirty" placeholder="记录高光剧情、台词..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs h-20 outline-none bg-white focus:border-dream-purple"></textarea>
                                 </div>
 
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -799,12 +860,12 @@
                                             <div v-for="(img, iIdx) in mod.charImages" :key="img.id" class="flex items-center gap-2 p-1.5 rounded-lg border border-slate-100 bg-slate-50">
                                                 <img :src="img.url" loading="lazy" class="w-12 h-12 rounded object-cover cursor-pointer" @click="previewFullImage(img.url, img.name)">
                                                 <div class="flex-1 min-w-0">
-                                                    <input v-model="img.name" type="text" placeholder="输入名称(默认为空)" class="w-full px-2 py-0.5 rounded border border-slate-200 text-[11px] bg-white">
+                                                    <input v-model="img.name" @input="markDraftDirty" type="text" placeholder="输入名称(默认为空)" class="w-full px-2 py-0.5 rounded border border-slate-200 text-[11px] bg-white">
                                                 </div>
                                                 <div class="flex flex-col gap-1 text-[10px]">
                                                     <button @click="openCropper(img)" class="text-dream-purple hover:underline">裁剪</button>
                                                     <button @click="moveImage(mod, 'charImages', 'sceneImages', iIdx)" class="text-sky-500 hover:underline">移到剧情</button>
-                                                    <button @click="mod.charImages.splice(iIdx, 1)" class="text-rose-400 hover:underline">删除</button>
+                                                    <button @click="mod.charImages.splice(iIdx, 1); markDraftDirty()" class="text-rose-400 hover:underline">删除</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -822,12 +883,12 @@
                                             <div v-for="(img, iIdx) in mod.sceneImages" :key="img.id" class="flex items-center gap-2 p-1.5 rounded-lg border border-slate-100 bg-slate-50">
                                                 <img :src="img.url" loading="lazy" class="w-16 h-12 rounded object-cover cursor-pointer" @click="previewFullImage(img.url, img.name)">
                                                 <div class="flex-1 min-w-0">
-                                                    <input v-model="img.name" type="text" placeholder="输入名称(默认为空)" class="w-full px-2 py-0.5 rounded border border-slate-200 text-[11px] bg-white">
+                                                    <input v-model="img.name" @input="markDraftDirty" type="text" placeholder="输入名称(默认为空)" class="w-full px-2 py-0.5 rounded border border-slate-200 text-[11px] bg-white">
                                                 </div>
                                                 <div class="flex flex-col gap-1 text-[10px]">
                                                     <button @click="openCropper(img)" class="text-dream-purple hover:underline">裁剪</button>
                                                     <button @click="moveImage(mod, 'sceneImages', 'charImages', iIdx)" class="text-nikki-500 hover:underline">移到人物</button>
-                                                    <button @click="mod.sceneImages.splice(iIdx, 1)" class="text-rose-400 hover:underline">删除</button>
+                                                    <button @click="mod.sceneImages.splice(iIdx, 1); markDraftDirty()" class="text-rose-400 hover:underline">删除</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -841,12 +902,12 @@
 
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">大版本活动备忘杂记</label>
-                    <textarea v-model="formAct.note" placeholder="记录心得..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs h-16 outline-none focus:border-nikki-500"></textarea>
+                    <textarea v-model="formAct.note" @input="markDraftDirty" placeholder="记录心得..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs h-16 outline-none focus:border-nikki-500"></textarea>
                 </div>
             </div>
 
             <div class="flex justify-end gap-2 mt-6">
-                <button @click="modals.editActivity = false" class="px-4 py-2 rounded-full text-xs font-bold text-slate-500 hover:bg-slate-100">取消</button>
+                <button @click="tryCloseEditModal" class="px-4 py-2 rounded-full text-xs font-bold text-slate-500 hover:bg-slate-100">取消</button>
                 <button @click="saveActivity" class="px-6 py-2 rounded-full text-xs font-bold bg-nikki-500 text-white shadow-glow">保存活动卡片</button>
             </div>
         </div>
@@ -942,12 +1003,12 @@
 <script>
 const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
-// 1. IndexedDB 存储引擎升级（彻底解决 5MB 限制）
+// 1. IndexedDB 存储引擎升级（突破 LocalStorage 限制）
 const IDB = {
     db: null,
     init() {
         return new Promise((resolve) => {
-            const req = indexedDB.open('GamerTimelineDB_v1', 1);
+            const req = indexedDB.open('GamerTimelineDB_v2', 1);
             req.onupgradeneeded = (e) => {
                 e.target.result.createObjectStore('store');
             };
@@ -1053,10 +1114,10 @@ createApp({
         const isMobile = ref(window.innerWidth < 768);
         const effectiveLayout = computed(() => isMobile.value ? 'vertical' : timelineLayout.value);
 
-        // 搜索与多维过滤
+        // 搜索与过滤
         const searchQuery = ref('');
-        const filterSource = ref('all'); // all, cardPool, topUp, free
-        const filterStatus = ref('all'); // all, completed, inProgress
+        const filterSource = ref('all');
+        const filterStatus = ref('all');
 
         const modals = ref({
             addGame: false,
@@ -1093,7 +1154,18 @@ createApp({
             { label: '9:16 立绘', val: 9/16 }
         ];
 
-        let clickTimer = null;
+        // 触控手势定时器：单击打卡 vs 长按 0.5s 预览
+        let longPressTimer = null;
+        let isLongPressTriggered = false;
+
+        // 草稿箱状态
+        const isActFormDirty = ref(false);
+        const draftActivityMap = ref({});
+
+        // 拖拽排序状态记录
+        let draggedModIdx = null;
+        let draggedItemMod = null;
+        let draggedItemIdx = null;
 
         const currentBackgroundUrl = computed(() => {
             if (currentView.value === 'home') return '';
@@ -1109,31 +1181,24 @@ createApp({
             return activities.value[activeGame.value.id] || [];
         });
 
-        // 核心过滤器计算属性
         const filteredActivities = computed(() => {
             return currentActivities.value.filter(act => {
-                // 1. 关键词过滤（标题或套装名）
                 if (searchQuery.value) {
                     const q = searchQuery.value.trim().toLowerCase();
                     const matchTitle = (act.title || '').toLowerCase().includes(q);
                     const matchSuit = (act.modules || []).some(m => (m.suitName || m.title || '').toLowerCase().includes(q));
                     if (!matchTitle && !matchSuit) return false;
                 }
-
-                // 2. 来源过滤
                 if (filterSource.value !== 'all') {
                     const hasSource = (act.modules || []).some(m => m.source === filterSource.value);
                     if (!hasSource) return false;
                 }
-
-                // 3. 完成度过滤
                 if (filterStatus.value !== 'all') {
                     const stats = getActivityStats(act);
                     const isCompleted = stats.total > 0 && stats.owned === stats.total;
                     if (filterStatus.value === 'completed' && !isCompleted) return false;
                     if (filterStatus.value === 'inProgress' && isCompleted) return false;
                 }
-
                 return true;
             });
         });
@@ -1149,7 +1214,6 @@ createApp({
             return { pulls, ownedItems: owned, totalItems: total };
         });
 
-        // 详细统计数据
         const statsDetails = computed(() => {
             let pulls = 0, perfectCount = 0;
             let totalSuits = 0;
@@ -1189,9 +1253,7 @@ createApp({
             const avgPulls = totalSuits > 0 ? Math.round(pulls / totalSuits) : 0;
             const perfectRate = currentActivities.value.length > 0 ? Math.round((perfectCount / currentActivities.value.length) * 100) : 0;
 
-            return {
-                pulls, avgPulls, perfectRate, sources, tagCounts
-            };
+            return { pulls, avgPulls, perfectRate, sources, tagCounts };
         });
 
         function getActivityStats(act) {
@@ -1211,7 +1273,6 @@ createApp({
         }
 
         async function persistLocal() {
-            // 写入本地 IndexedDB 大数据库，同时尝试写入 LocalStorage 备份
             await IDB.set('app_games', JSON.parse(JSON.stringify(games.value)));
             await IDB.set('app_activities', JSON.parse(JSON.stringify(activities.value)));
             await IDB.set('app_tags', JSON.parse(JSON.stringify(gameTags.value)));
@@ -1244,23 +1305,59 @@ createApp({
             currentActivities.value.forEach(act => act.isExpanded = expanded);
         }
 
-        function handleItemClick(item) {
-            if (clickTimer) clearTimeout(clickTimer);
-            clickTimer = setTimeout(() => {
+        // 横向卷轴智能滚轮：纵向滚轮自动转换为横向滚动
+        function handleHorizontalWheel(e) {
+            if (e.deltaY) {
+                e.preventDefault();
+                e.currentTarget.scrollLeft += e.deltaY * 1.35;
+            }
+        }
+
+        // 核心手势：长按 0.5s 预览大图，短按直接打卡点亮
+        function handlePressStart(item, mod) {
+            isLongPressTriggered = false;
+            if (longPressTimer) clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(() => {
+                isLongPressTriggered = true;
                 if (item.imgUrl) {
                     previewFullImage(item.imgUrl, item.name || `部件 #${item.id}`);
                 }
-            }, 250);
+            }, 500);
+        }
+
+        function handlePressCancel() {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        }
+
+        function handlePressEnd(item, mod) {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            if (!isLongPressTriggered) {
+                // 短按：立即打卡
+                toggleItemOwned(item, mod);
+            }
         }
 
         function toggleItemOwned(item, mod) {
-            if (clickTimer) clearTimeout(clickTimer);
             item.owned = !item.owned;
             mod.collectedItems = mod.items.filter(i => i.owned).length;
             persistLocal();
         }
 
-        // 一键全部拥有 / 一键重置
+        // 点亮部件默认排在最前面
+        function getSortedItems(mod) {
+            if (!mod.items) return [];
+            return [...mod.items].sort((a, b) => {
+                if (a.owned === b.owned) return 0;
+                return a.owned ? -1 : 1;
+            });
+        }
+
         function batchToggleItems(mod, owned) {
             if (!mod.items) return;
             mod.items.forEach(i => i.owned = owned);
@@ -1268,9 +1365,38 @@ createApp({
             persistLocal();
         }
 
-        // 快捷调整抽数
         function adjustPulls(mod, delta) {
             mod.pulls = Math.max(0, (Number(mod.pulls) || 0) + delta);
+            markDraftDirty();
+        }
+
+        // 子模块拖拽排序
+        function onModDragStart(idx) {
+            draggedModIdx = idx;
+        }
+
+        function onModDrop(targetIdx) {
+            if (draggedModIdx === null || draggedModIdx === targetIdx) return;
+            const moved = formAct.value.modules.splice(draggedModIdx, 1)[0];
+            formAct.value.modules.splice(targetIdx, 0, moved);
+            draggedModIdx = null;
+            markDraftDirty();
+            refreshIcons();
+        }
+
+        // 部件自由拖拽排序
+        function onItemDragStart(mod, idx) {
+            draggedItemMod = mod;
+            draggedItemIdx = idx;
+        }
+
+        function onItemDrop(mod, targetIdx) {
+            if (!draggedItemMod || draggedItemMod !== mod || draggedItemIdx === targetIdx) return;
+            const moved = mod.items.splice(draggedItemIdx, 1)[0];
+            mod.items.splice(targetIdx, 0, moved);
+            draggedItemMod = null;
+            draggedItemIdx = null;
+            markDraftDirty();
         }
 
         function addSingleItem(mod) {
@@ -1283,18 +1409,21 @@ createApp({
                 imgUrl: ''
             });
             mod.totalItems = mod.items.length;
+            markDraftDirty();
         }
 
         function removeSingleItem(mod, index) {
             mod.items.splice(index, 1);
             mod.totalItems = mod.items.length;
             mod.collectedItems = mod.items.filter(i => i.owned).length;
+            markDraftDirty();
         }
 
         async function handleSingleItemImage(e, item) {
             const file = e.target.files[0];
             if (!file) return;
             item.imgUrl = await compressImage(file, 400, 0.85);
+            markDraftDirty();
         }
 
         async function handleCoverUpload(e) {
@@ -1307,6 +1436,7 @@ createApp({
             const file = e.target.files[0];
             if (!file) return;
             formAct.value.bannerUrl = await compressImage(file, 1200, 0.82);
+            markDraftDirty();
         }
 
         function addGlobalTag() {
@@ -1357,7 +1487,6 @@ createApp({
 
         function saveGame() {
             if (!formGame.value.name) return alert('请输入游戏名称！');
-            
             if (formGame.value.id) {
                 const g = games.value.find(item => item.id === formGame.value.id);
                 if (g) {
@@ -1380,10 +1509,42 @@ createApp({
             refreshIcons();
         }
 
+        // 草稿箱与防误触机制
+        function markDraftDirty() {
+            isActFormDirty.value = true;
+            if (activeGame.value) {
+                draftActivityMap.value[activeGame.value.id] = JSON.parse(JSON.stringify(formAct.value));
+            }
+        }
+
+        function tryCloseEditModal() {
+            if (isActFormDirty.value) {
+                if (confirm('当前有未保存的编辑内容，确认退出吗？（内容已自动暂存为草稿，下次可恢复）')) {
+                    modals.value.editActivity = false;
+                }
+            } else {
+                modals.value.editActivity = false;
+            }
+        }
+
         function openEditActivityModal(act = null) {
+            const gid = activeGame.value.id;
+            isActFormDirty.value = false;
+
             if (act) {
                 formAct.value = JSON.parse(JSON.stringify(act));
             } else {
+                // 如果存在未保存的草稿，提示恢复
+                if (draftActivityMap.value[gid] && draftActivityMap.value[gid].title) {
+                    if (confirm('检测到上次未保存的版本活动草稿，是否恢复？')) {
+                        formAct.value = JSON.parse(JSON.stringify(draftActivityMap.value[gid]));
+                        isActFormDirty.value = true;
+                        modals.value.editActivity = true;
+                        refreshIcons();
+                        return;
+                    }
+                }
+
                 formAct.value = {
                     id: '',
                     title: '',
@@ -1427,6 +1588,7 @@ createApp({
                     sceneImages: []
                 });
             }
+            markDraftDirty();
             refreshIcons();
         }
 
@@ -1441,11 +1603,13 @@ createApp({
                     name: ''
                 });
             }
+            markDraftDirty();
         }
 
         function moveImage(mod, fromArray, toArray, index) {
             const item = mod[fromArray].splice(index, 1)[0];
             if (item) mod[toArray].push(item);
+            markDraftDirty();
         }
 
         function openCropper(imgObj) {
@@ -1482,6 +1646,7 @@ createApp({
                 ctx.drawImage(img, startX, startY, targetW, targetH, 0, 0, targetW, targetH);
                 editingImgObj.value.url = canvas.toDataURL('image/jpeg', 0.85);
                 modals.value.cropper = false;
+                markDraftDirty();
             };
             img.src = editingImgObj.value.url;
         }
@@ -1496,27 +1661,33 @@ createApp({
             mod.cropRows = rows;
             mod.userSetGrid = true;
             if (mod.cachedImg) executeGridCrop(mod);
+            markDraftDirty();
         }
 
+        // Tesseract OCR 内存优化：临时创建 Worker，识别后立刻 terminate 释放内存
         function handleCropUpload(e, mod) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = evt => {
                 const img = new Image();
-                img.onload = () => {
+                img.onload = async () => {
                     mod.cachedImg = img;
                     executeGridCrop(mod);
+                    markDraftDirty();
 
                     if (window.Tesseract) {
-                        Tesseract.recognize(img, 'chi_sim', { logger: () => {} })
-                            .then(res => {
-                                const text = (res.data.text || '').trim();
-                                if (text && !mod.suitName) {
-                                    const firstLine = text.split('\n')[0].replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
-                                    if (firstLine) mod.suitName = firstLine;
-                                }
-                            }).catch(() => {});
+                        try {
+                            const worker = await Tesseract.createWorker('chi_sim');
+                            const res = await worker.recognize(img);
+                            await worker.terminate(); // 即刻销毁释放 ~40MB 内存
+
+                            const text = (res.data.text || '').trim();
+                            if (text && !mod.suitName) {
+                                const firstLine = text.split('\n')[0].replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+                                if (firstLine) mod.suitName = firstLine;
+                            }
+                        } catch (err) {}
                     }
                 };
                 img.src = evt.target.result;
@@ -1526,6 +1697,7 @@ createApp({
 
         function reCrop(mod) {
             if (mod.cachedImg) executeGridCrop(mod);
+            markDraftDirty();
         }
 
         function executeGridCrop(mod) {
@@ -1576,36 +1748,12 @@ createApp({
                     );
 
                     const iconDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                    const currentIdx = count;
-
-                    const itemObj = {
-                        id: currentIdx,
+                    newItems.push({
+                        id: count,
                         name: '',
                         imgUrl: iconDataUrl,
                         owned: false
-                    };
-
-                    newItems.push(itemObj);
-
-                    if (window.Tesseract && rows > 1) {
-                        try {
-                            const textCanvas = document.createElement('canvas');
-                            const tCtx = textCanvas.getContext('2d');
-                            const textH = cellH * 0.28;
-                            textCanvas.width = iconW;
-                            textCanvas.height = textH;
-                            tCtx.drawImage(img, c * cellW + padX, r * cellH + iconH, iconW, textH, 0, 0, iconW, textH);
-                            
-                            Tesseract.recognize(textCanvas.toDataURL('image/jpeg'), 'chi_sim', { logger: () => {} })
-                                .then(tRes => {
-                                    const rawName = (tRes.data.text || '').replace(/[^\u4e00-\u9fa5]/g, '').trim();
-                                    if (rawName && rawName.length >= 2) {
-                                        itemObj.name = rawName;
-                                    }
-                                }).catch(() => {});
-                        } catch(err) {}
-                    }
-
+                    });
                     count++;
                 }
             }
@@ -1638,12 +1786,15 @@ createApp({
                 });
             }
 
+            // 清理已保存的草稿
+            delete draftActivityMap.value[gameId];
+            isActFormDirty.value = false;
+
             persistLocal();
             modals.value.editActivity = false;
             refreshIcons();
         }
 
-        // 生成精美成就长图海报
         function generatePoster(act) {
             const canvas = document.getElementById('posterCanvas');
             const ctx = canvas.getContext('2d');
@@ -1652,21 +1803,18 @@ createApp({
             canvas.width = w;
             canvas.height = h;
 
-            // 背景渐变
             const grad = ctx.createLinearGradient(0, 0, 0, h);
             grad.addColorStop(0, '#fff5f8');
             grad.addColorStop(1, '#f3f0fa');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, w, h);
 
-            // 装饰性内卡片
             ctx.fillStyle = '#ffffff';
             ctx.shadowColor = 'rgba(0,0,0,0.08)';
             ctx.shadowBlur = 20;
             ctx.fillRect(40, 40, w - 80, h - 80);
             ctx.shadowBlur = 0;
 
-            // 顶部信息
             ctx.fillStyle = '#f43f6e';
             ctx.font = 'bold 24px sans-serif';
             ctx.fillText(activeGame.value?.name + ' · 活动手帐', 60, 90);
@@ -1684,13 +1832,11 @@ createApp({
             ctx.font = 'bold 16px sans-serif';
             ctx.fillText(`★ 投入抽数：${stats.pulls} 抽    ★ 收集进度：${stats.owned}/${stats.total}`, 60, 200);
 
-            // Banner 绘制
             const banner = new Image();
             banner.crossOrigin = 'anonymous';
             banner.onload = () => {
                 ctx.drawImage(banner, 60, 220, w - 120, 220);
 
-                // 如果全齐，盖金色印章
                 if (stats.total > 0 && stats.owned === stats.total) {
                     ctx.save();
                     ctx.translate(w - 150, 260);
@@ -1707,13 +1853,11 @@ createApp({
                     ctx.restore();
                 }
 
-                // 底部标语
                 ctx.fillStyle = '#94a3b8';
                 ctx.font = '12px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText('由 GamerTimeline Hub 自动生成 · 沉淀每一个心动瞬间', w / 2, h - 60);
 
-                // 触发下载
                 const a = document.createElement('a');
                 a.download = `${act.title}_成就手帐.png`;
                 a.href = canvas.toDataURL('image/png');
@@ -1722,7 +1866,6 @@ createApp({
             banner.src = act.bannerUrl || activeGame.value?.cover;
         }
 
-        // 本地离线物理备份
         function exportLocalBackup() {
             const data = {
                 games: games.value,
@@ -1760,7 +1903,40 @@ createApp({
             reader.readAsText(file);
         }
 
-        // GitHub 云同步逻辑
+        // 终极优化：自动将大图片分块上传至 GitHub assets/ 目录，JSON 永久瘦身至几十KB
+        async function uploadBase64ToAssets(repo, token, base64Url, filename) {
+            const base64Data = base64Url.split(',')[1];
+            const url = `https://api.github.com/repos/${repo}/contents/assets/${filename}`;
+            
+            // 检查是否已存在
+            let sha = undefined;
+            const getRes = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => null);
+            if (getRes && getRes.ok) {
+                const data = await getRes.json();
+                sha = data.sha;
+            }
+
+            const putRes = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `Upload asset ${filename}`,
+                    content: base64Data,
+                    sha: sha
+                })
+            });
+
+            if (putRes.ok) {
+                return `https://raw.githubusercontent.com/${repo}/main/assets/${filename}`;
+            }
+            return null;
+        }
+
         async function pushToGitHub() {
             const token = (syncConfig.value.token || '').trim();
             const repo = (syncConfig.value.repo || '').trim();
@@ -1772,6 +1948,35 @@ createApp({
             localStorage.setItem('gh_repo', repo);
 
             try {
+                // 深度优化：检测并将所有 Base64 图片上传到 assets/ 目录，换取永久直链
+                syncStatusText.value = '正在优化云端图片资产结构...';
+                const payload = JSON.parse(JSON.stringify({
+                    games: games.value,
+                    activities: activities.value,
+                    gameTags: gameTags.value
+                }));
+
+                // 替换封面图片
+                for (const g of payload.games) {
+                    if (g.cover && g.cover.startsWith('data:image')) {
+                        const fname = `cover_${g.id}.jpg`;
+                        const cdnUrl = await uploadBase64ToAssets(repo, token, g.cover, fname);
+                        if (cdnUrl) g.cover = cdnUrl;
+                    }
+                }
+
+                // 替换各活动 Banner 及图库图片
+                for (const gid in payload.activities) {
+                    for (const act of payload.activities[gid]) {
+                        if (act.bannerUrl && act.bannerUrl.startsWith('data:image')) {
+                            const fname = `banner_${act.id}.jpg`;
+                            const cdnUrl = await uploadBase64ToAssets(repo, token, act.bannerUrl, fname);
+                            if (cdnUrl) act.bannerUrl = cdnUrl;
+                        }
+                    }
+                }
+
+                syncStatusText.value = '正在同步推送主数据包...';
                 const path = 'game_timeline_data.json';
                 const url = `https://api.github.com/repos/${repo}/contents/${path}`;
                 
@@ -1791,11 +1996,7 @@ createApp({
                     sha = existing.sha;
                 }
 
-                syncStatusText.value = '正在打包编码数据...';
-                const payload = { games: games.value, activities: activities.value, gameTags: gameTags.value };
                 const contentEncoded = await jsonToBase64(payload);
-
-                syncStatusText.value = '正在同步推送至 GitHub...';
                 const putRes = await fetch(url, {
                     method: 'PUT',
                     headers: { 
@@ -1811,7 +2012,12 @@ createApp({
                 });
 
                 if (putRes.ok) {
-                    alert('🎉 成功推送到 GitHub 仓库！所有设备均已同步最新数据');
+                    // 同步成功后更新本地状态
+                    games.value = payload.games;
+                    activities.value = payload.activities;
+                    await persistLocal();
+
+                    alert('🎉 成功推送到 GitHub 仓库！数据已彻底瘦身，所有设备秒速漫游');
                     modals.value.sync = false;
                 } else {
                     const err = await putRes.json().catch(() => ({}));
@@ -1914,7 +2120,6 @@ createApp({
         onMounted(async () => {
             window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768; });
             
-            // 初始化 IndexedDB，如果库里有数据优先还原 IndexedDB（突破 LocalStorage 限制）
             await IDB.init();
             const idbGames = await IDB.get('app_games');
             const idbActs = await IDB.get('app_activities');
@@ -1936,11 +2141,12 @@ createApp({
             searchQuery, filterSource, filterStatus, filteredActivities,
             newTagInput, currentGlobalTags, formGame, formAct, syncConfig, syncLoading, syncStatusText, previewData,
             editingImgObj, currentRatio, cropRatios, currentBackgroundUrl, currentActivities, totalStats, statsDetails,
-            getActivityStats, selectGame, switchView, toggleTimelineLayout, toggleAllExpand, addGlobalTag, removeGlobalTag,
-            toggleModTag, openCreateModal, openEditGameModal, openEditActivityModal, addSubModule, toggleItemOwned, handleItemClick,
-            batchToggleItems, adjustPulls, addSingleItem, removeSingleItem, handleSingleItemImage, handleCoverUpload, handleBannerUpload,
-            handleMultiImageUpload, moveImage, openCropper, setCropRatio, applyCropAndOverwrite,
-            previewFullImage, handleCropUpload, reCrop, setPresetGrid, saveGame, saveActivity,
+            getActivityStats, selectGame, switchView, toggleTimelineLayout, toggleAllExpand, handleHorizontalWheel,
+            handlePressStart, handlePressEnd, handlePressCancel, toggleItemOwned, getSortedItems, batchToggleItems, adjustPulls,
+            onModDragStart, onModDrop, onItemDragStart, onItemDrop, addSingleItem, removeSingleItem, handleSingleItemImage,
+            handleCoverUpload, handleBannerUpload, handleMultiImageUpload, moveImage, openCropper, setCropRatio, applyCropAndOverwrite,
+            previewFullImage, handleCropUpload, reCrop, setPresetGrid, addGlobalTag, removeGlobalTag, toggleModTag,
+            openCreateModal, openEditGameModal, openEditActivityModal, addSubModule, saveGame, saveActivity, tryCloseEditModal, markDraftDirty,
             generatePoster, exportLocalBackup, importLocalBackup, pushToGitHub, pullFromGitHub
         };
     }
