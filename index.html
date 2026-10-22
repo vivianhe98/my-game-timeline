@@ -43,7 +43,7 @@
     </script>
 
     <style>
-        /* 动态高清背景层（清晰度由 14px 调至 4px，细腻还原原画质感） */
+        /* 动态高清背景层 */
         .bg-dynamic-blur {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -55,7 +55,7 @@
             transition: background-image 0.8s ease-in-out;
         }
 
-        /* 背景微弱暗角遮罩：保证前景白卡片阅读舒适 */
+        /* 背景微弱暗角遮罩 */
         .bg-vignette-overlay {
             position: fixed;
             inset: 0;
@@ -68,6 +68,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+        /* 鱼骨连接斜线 (竖向) */
         .bone-left::before {
             content: ''; position: absolute; top: 28px; right: -28px;
             width: 28px; height: 2px; background: rgba(244, 63, 110, 0.4);
@@ -79,6 +80,7 @@
             transform: rotate(15deg); transform-origin: right;
         }
 
+        /* 鱼骨连接竖线 (横向卷轴) */
         .bone-top::after {
             content: ''; position: absolute; bottom: -24px; left: 50%;
             width: 2px; height: 24px; background: rgba(244, 63, 110, 0.4);
@@ -114,12 +116,28 @@
         .drawer-content {
             overflow: hidden;
         }
+
+        .skeleton-shimmer {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.8s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* 年份电梯卡片聚焦光圈动画 */
+        .highlight-focus-pulse {
+            box-shadow: 0 0 0 4px #f43f6e, 0 0 30px rgba(244, 63, 110, 0.45) !important;
+            transition: box-shadow 0.3s ease;
+        }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col font-sans select-none antialiased bg-slate-50/50">
 
 <div id="app" class="flex-1 flex flex-col relative min-h-screen">
-    <div class="bg-dynamic-blur" :style="{ backgroundImage: currentBackgroundUrl ? `url(${currentBackgroundUrl})` : 'none' }"></div>
+    <div class="bg-dynamic-blur" :style="{ backgroundImage: currentBackgroundUrl ? `url(${smartImageUrl(currentBackgroundUrl)})` : 'none' }"></div>
     <div class="bg-vignette-overlay"></div>
 
     <!-- 顶部常驻导航 -->
@@ -170,6 +188,22 @@
         </div>
     </header>
 
+    <!-- 年代/季度快速直达电梯 (Floating Year Elevator) -->
+    <div v-if="currentView === 'detail' && availableYears.length > 1" 
+        class="fixed right-3 md:right-5 bottom-20 z-40 flex flex-col items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-white/80 transition-all select-none">
+        <span class="text-[9px] font-black text-slate-400 px-1 py-0.5 tracking-wider">年代</span>
+        <button v-for="y in availableYears" :key="y" 
+            @click="scrollToYear(y)"
+            class="px-2 py-1 rounded-xl text-xs font-extrabold text-slate-600 hover:text-white hover:bg-nikki-500 transition shadow-2xs active:scale-95"
+            :title="`直达 ${y} 年首个活动`">
+            {{ y }}
+        </button>
+        <div class="w-4 h-px bg-slate-200 my-0.5"></div>
+        <button @click="scrollToTop" class="p-1 rounded-xl text-slate-400 hover:text-nikki-500 transition active:scale-90" title="回到顶部">
+            <i data-lucide="arrow-up" class="w-4 h-4"></i>
+        </button>
+    </div>
+
     <!-- 主体内容 -->
     <main class="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 py-6 flex flex-col">
 
@@ -184,8 +218,8 @@
                 <div v-for="game in games" :key="game.id" @click="selectGame(game)"
                     class="group relative bg-white/70 backdrop-blur-md rounded-2xl overflow-hidden border border-white/80 shadow-glass hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 cursor-pointer flex flex-col">
                     
-                    <div class="aspect-[3/4] w-full overflow-hidden bg-slate-100 relative">
-                        <img :src="game.cover" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                    <div class="aspect-[3/4] w-full overflow-hidden bg-slate-100 relative skeleton-shimmer">
+                        <img :src="smartImageUrl(game.cover)" @error="e => onImgError(e, game.cover)" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                         
                         <button @click.stop="openEditGameModal(game)" 
                             title="更换封面/编辑游戏" 
@@ -224,7 +258,7 @@
             <!-- 顶部概览指标 -->
             <div class="bg-white/70 backdrop-blur-md rounded-2xl p-4 md:p-6 border border-white/80 shadow-glass mb-4 flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
-                    <img :src="activeGame.cover" class="w-12 h-12 rounded-xl object-cover shadow-sm border border-white" />
+                    <img :src="smartImageUrl(activeGame.cover)" @error="e => onImgError(e, activeGame.cover)" class="w-12 h-12 rounded-xl object-cover shadow-sm border border-white" />
                     <div>
                         <div class="flex items-center gap-2">
                             <h2 class="text-xl font-black text-slate-800">{{ activeGame.name }}</h2>
@@ -233,7 +267,7 @@
                             </span>
                         </div>
                         <p class="text-xs text-slate-500 mt-0.5">
-                            {{ activeGame.type === 'suit' ? '💡 提示：【单击】立即打卡，【长按 0.5 秒】放大预览部件大图！' : '💡 提示：【勾选卡面】标记已收集，点击卡牌可直接打卡或查看大图！' }}
+                            {{ activeGame.type === 'suit' ? '💡 提示：按开始时间倒序排列，【单击】立即打卡，【长按 0.5 秒】放大预览部件大图！' : '💡 提示：按开始时间倒序排列，右侧悬浮年代电梯可快速直达历史年份，点击卡面即可打卡！' }}
                         </p>
                     </div>
                 </div>
@@ -261,10 +295,10 @@
 
             <!-- 搜索与多维过滤条 -->
             <div class="bg-white/80 backdrop-blur-md rounded-2xl p-3 border border-white/80 shadow-sm mb-6 flex flex-wrap items-center justify-between gap-3 text-xs">
-                <div class="flex items-center gap-2 flex-1 min-w-[200px]">
-                    <div class="relative flex-1 max-w-xs">
+                <div class="flex items-center gap-2 flex-1 min-w-[240px] flex-wrap">
+                    <div class="relative flex-1 min-w-[160px] max-w-xs">
                         <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input v-model="searchQuery" type="text" placeholder="搜索版本名称、套装/卡面名称..." class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white/90 outline-none focus:border-nikki-500 text-xs">
+                        <input v-model="searchQuery" type="text" placeholder="搜索版本名称、套装/卡面、角色..." class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white/90 outline-none focus:border-nikki-500 text-xs">
                     </div>
                     <select v-model="filterSource" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white/90 outline-none">
                         <option value="all">全部来源</option>
@@ -272,6 +306,21 @@
                         <option value="topUp">仅看累充</option>
                         <option value="free">仅看免费</option>
                     </select>
+
+                    <select v-if="activeGame.type === 'card' && availableCharacters.length" v-model="filterCharacter" class="px-2.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50/50 text-amber-800 font-bold outline-none">
+                        <option value="all">全部角色</option>
+                        <option v-for="c in availableCharacters" :key="c" :value="c">{{ c }}</option>
+                    </select>
+
+                    <select v-if="activeGame.type === 'card'" v-model="filterRarity" class="px-2.5 py-1.5 rounded-xl border border-purple-300 bg-purple-50/50 text-purple-800 font-bold outline-none">
+                        <option value="all">全部品阶</option>
+                        <option value="SSR">SSR 勋章</option>
+                        <option value="MR">MR 勋章</option>
+                        <option value="世界卡">世界卡</option>
+                        <option value="SR">SR 勋章</option>
+                        <option value="SP">SP 勋章</option>
+                    </select>
+
                     <select v-model="filterStatus" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white/90 outline-none">
                         <option value="all">全部收集状态</option>
                         <option value="completed">已完美收集 (全齐)</option>
@@ -283,7 +332,7 @@
                     <button @click="toggleAllExpand(true)" class="px-2.5 py-1 rounded-lg text-slate-600 hover:bg-slate-100 font-medium transition">展开全部</button>
                     <button @click="toggleAllExpand(false)" class="px-2.5 py-1 rounded-lg text-slate-600 hover:bg-slate-100 font-medium transition">收起全部</button>
                     <span class="text-slate-300">|</span>
-                    <span class="text-slate-400">共筛选出 {{ filteredActivities.length }} 个版本</span>
+                    <span class="text-slate-400">共 {{ filteredActivities.length }} 个版本</span>
                 </div>
             </div>
 
@@ -298,7 +347,8 @@
 
                 <div class="flex flex-col gap-10">
                     <div v-for="(act, idx) in filteredActivities" :key="act.id" 
-                        class="relative flex flex-col md:flex-row items-center w-full"
+                        :id="'verCard-' + act.id"
+                        class="relative flex flex-col md:flex-row items-center w-full transition-all duration-300"
                         :class="[ idx % 2 === 0 ? 'md:justify-start' : 'md:justify-end' ]">
                         
                         <div class="absolute left-4 md:left-1/2 w-4 h-4 rounded-full bg-white border-4 border-nikki-500 shadow-md transform -translate-x-1/2 z-10"></div>
@@ -313,8 +363,8 @@
                                     <span>★</span> 完美收集
                                 </div>
 
-                                <div class="h-36 relative bg-slate-100 overflow-hidden cursor-pointer" @click="act.isExpanded = !act.isExpanded">
-                                    <img :src="act.bannerUrl" loading="lazy" class="w-full h-full object-cover" />
+                                <div class="h-36 relative bg-slate-100 overflow-hidden cursor-pointer skeleton-shimmer" @click="act.isExpanded = !act.isExpanded">
+                                    <img :src="smartImageUrl(act.bannerUrl)" @error="e => onImgError(e, act.bannerUrl)" loading="lazy" class="w-full h-full object-cover" />
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-3.5 text-white">
                                         <div class="flex items-center justify-between mb-1">
                                             <span class="text-[11px] font-semibold text-nikki-200">📅 {{ act.startDate }} ~ {{ act.endDate }}</span>
@@ -371,7 +421,7 @@
                                                                 <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-nikki-100 text-nikki-600 font-medium">#{{ t }}</span>
                                                             </div>
 
-                                                            <!-- 部件图标墙（暖暖方块式） -->
+                                                            <!-- 部件图标墙 -->
                                                             <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-2 mb-2">
                                                                 <div v-for="item in getSortedItems(mod)" :key="item.id" 
                                                                     @mousedown="handlePressStart(item, mod)"
@@ -380,11 +430,12 @@
                                                                     @touchstart.passive="handlePressStart(item, mod)"
                                                                     @touchend="handlePressEnd(item, mod)"
                                                                     @touchcancel="handlePressCancel"
-                                                                    class="flex flex-col items-center w-14 cursor-pointer group select-none">
+                                                                    class="flex flex-col items-center w-14 cursor-pointer group select-none"
+                                                                    :title="item.name ? `${item.name}（单击打卡，长按预览）` : '单击打卡，长按预览'">
                                                                     
-                                                                    <div class="w-12 h-12 rounded-xl border-2 overflow-hidden relative transition-all duration-200"
+                                                                    <div class="w-12 h-12 rounded-xl border-2 overflow-hidden relative transition-all duration-200 skeleton-shimmer"
                                                                         :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200 shadow-sm scale-105' : 'border-slate-200 opacity-40 grayscale group-hover:opacity-75'">
-                                                                        <img v-if="item.imgUrl" :src="item.imgUrl" loading="lazy" class="w-full h-full object-cover pointer-events-none" />
+                                                                        <img v-if="item.imgUrl" :src="smartImageUrl(item.imgUrl)" @error="e => onImgError(e, item.imgUrl)" loading="lazy" class="w-full h-full object-cover pointer-events-none" />
                                                                         <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-500 font-bold">#{{ item.id }}</div>
                                                                         <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-1 font-bold">✓</div>
                                                                     </div>
@@ -401,11 +452,10 @@
                                                         </div>
                                                     </template>
 
-                                                    <!-- 【模式 B：卡牌游戏-收集子模块（活动背景图 + 3:4 卡面竖版图鉴）】 -->
+                                                    <!-- 【模式 B：乙游卡牌-收集子模块】 -->
                                                     <template v-else-if="mod.moduleCategory === 'collection' && activeGame.type === 'card'">
-                                                        <!-- 活动背景图横幅 (若上传) -->
-                                                        <div v-if="mod.bgImage" class="h-28 w-full relative overflow-hidden bg-slate-900">
-                                                            <img :src="mod.bgImage" loading="lazy" class="w-full h-full object-cover opacity-90">
+                                                        <div v-if="mod.bgImage" class="h-28 w-full relative overflow-hidden bg-slate-900 skeleton-shimmer">
+                                                            <img :src="smartImageUrl(mod.bgImage)" @error="e => onImgError(e, mod.bgImage)" loading="lazy" class="w-full h-full object-cover opacity-90">
                                                             <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent flex items-end p-3">
                                                                 <span class="text-white text-xs font-bold drop-shadow">{{ mod.suitName || '活动卡池' }}</span>
                                                             </div>
@@ -440,30 +490,36 @@
                                                             <div v-if="mod.items && mod.items.length" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2.5 my-2">
                                                                 <div v-for="card in getSortedItems(mod)" :key="card.id"
                                                                     @click="toggleItemOwned(card, mod)"
-                                                                    class="flex flex-col rounded-xl overflow-hidden border-2 cursor-pointer transition-all duration-200 relative group bg-white shadow-xs"
+                                                                    class="flex flex-col rounded-xl overflow-hidden border-2 cursor-pointer transition-all duration-200 relative group bg-white shadow-xs select-none"
                                                                     :class="card.owned ? 'border-amber-400 ring-2 ring-amber-100 shadow-gold' : 'border-slate-200 opacity-60 hover:opacity-85'">
                                                                     
-                                                                    <!-- 卡面立绘 (3:4 黄金卡面比例) -->
-                                                                    <div class="aspect-[3/4] w-full relative bg-slate-100 overflow-hidden">
-                                                                        <img v-if="card.imgUrl" :src="card.imgUrl" loading="lazy" class="w-full h-full object-cover pointer-events-none">
-                                                                        <div v-else class="w-full h-full flex items-center justify-center text-xs text-slate-400">无卡面</div>
+                                                                    <div class="aspect-[3/4] w-full relative bg-slate-100 overflow-hidden skeleton-shimmer">
+                                                                        <img v-if="card.imgUrl" :src="smartImageUrl(card.imgUrl)" @error="e => onImgError(e, card.imgUrl)" loading="lazy" class="w-full h-full object-cover pointer-events-none">
+                                                                        <div v-else class="w-full h-full flex items-center justify-center text-xs text-slate-400">无图</div>
                                                                         
-                                                                        <!-- 勾选与收集状态角标 -->
-                                                                        <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white shadow-sm"
-                                                                            :class="card.owned ? 'bg-amber-500' : 'bg-slate-500/70 backdrop-blur'">
-                                                                            {{ card.owned ? '✓ 已收集' : '未拥有' }}
+                                                                        <div v-if="card.rarity" class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider text-white shadow-sm"
+                                                                            :class="getRarityBadgeClass(card.rarity)">
+                                                                            {{ card.rarity }}
                                                                         </div>
 
-                                                                        <!-- 放大预览快捷入口 -->
-                                                                        <button v-if="card.imgUrl" @click.stop="previewFullImage(card.imgUrl, card.name)" 
+                                                                        <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white shadow-sm"
+                                                                            :class="card.owned ? 'bg-amber-500' : 'bg-slate-500/70 backdrop-blur'">
+                                                                            {{ card.owned ? '✓' : '未得' }}
+                                                                        </div>
+
+                                                                        <button v-if="card.imgUrl" @click.stop="previewFullImage(smartImageUrl(card.imgUrl), `${card.character ? card.character + ' · ' : ''}${card.name || '卡面'}`)" 
                                                                             class="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                                                                             <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
                                                                         </button>
                                                                     </div>
 
-                                                                    <!-- 卡面名称 -->
-                                                                    <div class="p-1.5 text-center text-xs font-bold text-slate-700 truncate bg-slate-50 border-t border-slate-100">
-                                                                        {{ card.name || '未命名卡面' }}
+                                                                    <div class="p-1.5 text-center bg-slate-50 border-t border-slate-100">
+                                                                        <div v-if="card.character" class="text-[10px] font-black text-amber-600 truncate mb-0.5">
+                                                                            {{ card.character }}
+                                                                        </div>
+                                                                        <div class="text-xs font-bold text-slate-700 truncate">
+                                                                            {{ card.name || '未命名卡面' }}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -495,9 +551,9 @@
                                                                 <div v-if="mod.charImages && mod.charImages.length">
                                                                     <div class="text-[10px] font-bold text-slate-400 mb-1">人物相册 ({{ mod.charImages.length }})</div>
                                                                     <div class="flex flex-wrap gap-1.5">
-                                                                        <div v-for="img in mod.charImages" :key="img.id" @click="previewFullImage(img.url, img.name)" 
-                                                                            class="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs">
-                                                                            <img :src="img.url" loading="lazy" class="w-full h-full object-cover">
+                                                                        <div v-for="img in mod.charImages" :key="img.id" @click="previewFullImage(smartImageUrl(img.url), img.name)" 
+                                                                            class="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs skeleton-shimmer">
+                                                                            <img :src="smartImageUrl(img.url)" @error="e => onImgError(e, img.url)" loading="lazy" class="w-full h-full object-cover">
                                                                             <div v-if="img.name" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center truncate px-0.5">{{ img.name }}</div>
                                                                         </div>
                                                                     </div>
@@ -506,9 +562,9 @@
                                                                 <div v-if="mod.sceneImages && mod.sceneImages.length">
                                                                     <div class="text-[10px] font-bold text-slate-400 mb-1">剧情名场面CG ({{ mod.sceneImages.length }})</div>
                                                                     <div class="flex flex-wrap gap-1.5">
-                                                                        <div v-for="img in mod.sceneImages" :key="img.id" @click="previewFullImage(img.url, img.name)" 
-                                                                            class="w-20 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs">
-                                                                            <img :src="img.url" loading="lazy" class="w-full h-full object-cover">
+                                                                        <div v-for="img in mod.sceneImages" :key="img.id" @click="previewFullImage(smartImageUrl(img.url), img.name)" 
+                                                                            class="w-20 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer shadow-xs skeleton-shimmer">
+                                                                            <img :src="smartImageUrl(img.url)" @error="e => onImgError(e, img.url)" loading="lazy" class="w-full h-full object-cover">
                                                                             <div v-if="img.name" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center truncate px-0.5">{{ img.name }}</div>
                                                                         </div>
                                                                     </div>
@@ -539,7 +595,8 @@
 
                 <div class="flex gap-16 px-10 relative min-w-max items-center h-[560px]">
                     <div v-for="(act, idx) in filteredActivities" :key="act.id" 
-                        class="w-80 relative flex flex-col items-center"
+                        :id="'verCard-' + act.id"
+                        class="w-80 relative flex flex-col items-center transition-all duration-300"
                         :class="[ idx % 2 === 0 ? 'bone-top self-start mt-2' : 'bone-bottom self-end mb-2' ]">
                         
                         <div class="absolute left-1/2 w-4 h-4 rounded-full bg-white border-4 border-nikki-500 shadow-md transform -translate-x-1/2 z-10"
@@ -552,8 +609,8 @@
                                 完美收集
                             </div>
 
-                            <div class="h-32 relative bg-slate-100 overflow-hidden cursor-pointer" @click="act.isExpanded = !act.isExpanded">
-                                <img :src="act.bannerUrl" loading="lazy" class="w-full h-full object-cover" />
+                            <div class="h-32 relative bg-slate-100 overflow-hidden cursor-pointer skeleton-shimmer" @click="act.isExpanded = !act.isExpanded">
+                                <img :src="smartImageUrl(act.bannerUrl)" @error="e => onImgError(e, act.bannerUrl)" loading="lazy" class="w-full h-full object-cover" />
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex flex-col justify-end p-3 text-white">
                                     <div class="text-[10px] text-nikki-200 font-semibold">📅 {{ act.startDate }} ~ {{ act.endDate }}</div>
                                     <h3 class="text-sm font-extrabold truncate">{{ act.title }}</h3>
@@ -598,9 +655,18 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">游戏封面图（上传自动轻量化压缩）</label>
-                    <input type="file" accept="image/*" @change="e => handleCoverUpload(e)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
-                    <img v-if="formGame.cover" :src="formGame.cover" class="h-32 w-full object-cover rounded-xl mt-2 border border-slate-100 shadow-sm">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">游戏封面图（支持手机/平板相册与拍照）</label>
+                    <input type="file" 
+                        accept="image/*" 
+                        @click="e => e.target.value = ''"
+                        @change="e => handleCoverUpload(e)" 
+                        class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100 cursor-pointer">
+                    
+                    <div v-if="isUploadingCover" class="text-xs text-dream-purple py-2 font-bold flex items-center gap-1.5">
+                        <span class="inline-block w-3 h-3 rounded-full border-2 border-dream-purple border-t-transparent animate-spin"></span>
+                        正在处理并轻量化压缩图片...
+                    </div>
+                    <img v-if="formGame.cover" :src="smartImageUrl(formGame.cover)" class="h-32 w-full object-cover rounded-xl mt-2 border border-slate-100 shadow-sm">
                 </div>
             </div>
             <div class="flex justify-end gap-2 mt-6">
@@ -715,7 +781,7 @@
         </div>
     </div>
 
-    <!-- ================= 弹窗 4：大活动编辑/新增 (卡牌/换装智能分流) ================= -->
+    <!-- ================= 弹窗 4：大活动编辑/新增 ================= -->
     <div v-if="modals.editActivity" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-white max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
@@ -741,8 +807,12 @@
 
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">大活动主宣传KV图 (上传自动高清压缩)</label>
-                    <input type="file" accept="image/*" @change="e => handleBannerUpload(e)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100">
-                    <img v-if="formAct.bannerUrl" :src="formAct.bannerUrl" class="h-28 w-full object-cover rounded-xl mt-2 border">
+                    <input type="file" 
+                        accept="image/*" 
+                        @click="e => e.target.value = ''"
+                        @change="e => handleBannerUpload(e)" 
+                        class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-nikki-50 file:text-nikki-600 hover:file:bg-nikki-100 cursor-pointer">
+                    <img v-if="formAct.bannerUrl" :src="smartImageUrl(formAct.bannerUrl)" class="h-28 w-full object-cover rounded-xl mt-2 border">
                 </div>
 
                 <div class="border-t border-slate-100 pt-4">
@@ -817,7 +887,6 @@
                                     </div>
                                 </div>
 
-                                <!-- 暖暖智能网格切图器 -->
                                 <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
                                     <div class="flex items-center justify-between mb-2">
                                         <span class="text-xs font-bold text-slate-700">🖼️ 上传套装长截图（自动切图识别）</span>
@@ -827,7 +896,11 @@
                                         </button>
                                     </div>
 
-                                    <input type="file" accept="image/*" @change="e => handleCropUpload(e, mod)" class="text-xs text-slate-500 mb-2">
+                                    <input type="file" 
+                                        accept="image/*" 
+                                        @click="e => e.target.value = ''"
+                                        @change="e => handleCropUpload(e, mod)" 
+                                        class="text-xs text-slate-500 mb-2 cursor-pointer">
 
                                     <div class="flex items-center gap-1.5 mb-2">
                                         <span class="text-[10px] text-slate-400 font-bold">排版预设：</span>
@@ -875,14 +948,18 @@
                                                 :class="item.owned ? 'border-nikki-500 ring-2 ring-nikki-200' : 'border-slate-200 opacity-60'"
                                                 @click="item.owned = !item.owned; markDraftDirty()"
                                                 title="点击切换拥有状态">
-                                                <img v-if="item.imgUrl" :src="item.imgUrl" loading="lazy" class="w-full h-full object-cover">
+                                                <img v-if="item.imgUrl" :src="smartImageUrl(item.imgUrl)" @error="e => onImgError(e, item.imgUrl)" loading="lazy" class="w-full h-full object-cover">
                                                 <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-500 font-bold">#{{ item.id }}</div>
                                                 <div v-if="item.owned" class="absolute top-0 right-0 bg-nikki-500 text-white rounded-bl text-[8px] px-0.5 font-bold">✓</div>
                                             </div>
 
                                             <label class="text-[9px] text-dream-purple hover:underline cursor-pointer mb-1">
                                                 更换图片
-                                                <input type="file" accept="image/*" @change="e => handleSingleItemImage(e, item)" class="hidden">
+                                                <input type="file" 
+                                                    accept="image/*" 
+                                                    @click="e => e.target.value = ''"
+                                                    @change="e => handleSingleItemImage(e, item)" 
+                                                    class="hidden">
                                             </label>
 
                                             <input v-model="item.name" @input="markDraftDirty" type="text" placeholder="部件名(空)" class="w-full px-1 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-nikki-500">
@@ -897,7 +974,7 @@
                                 </div>
                             </template>
 
-                            <!-- 【B：卡牌模式下的收集模块编辑（未定/世界之外）】 -->
+                            <!-- 【B：乙游卡牌模式编辑】 -->
                             <template v-else-if="mod.moduleCategory === 'collection' && activeGame.type === 'card'">
                                 <div class="flex items-center justify-between mb-3">
                                     <div class="flex items-center gap-2 flex-wrap">
@@ -927,20 +1004,22 @@
                                     </div>
                                 </div>
 
-                                <!-- 活动专属背景图上传 -->
                                 <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
-                                    <label class="block text-xs font-bold text-slate-700 mb-1.5">🌄 卡池活动背景图（将显示在卡池顶部横幅）</label>
-                                    <input type="file" accept="image/*" @change="e => handleModBgUpload(e, mod)" class="text-xs text-slate-500 mb-2">
+                                    <label class="block text-xs font-bold text-slate-700 mb-1.5">🌄 卡池活动背景图（将作为卡池横幅）</label>
+                                    <input type="file" 
+                                        accept="image/*" 
+                                        @click="e => e.target.value = ''"
+                                        @change="e => handleModBgUpload(e, mod)" 
+                                        class="text-xs text-slate-500 mb-2 cursor-pointer">
                                     <div v-if="mod.bgImage" class="h-20 w-full rounded-lg overflow-hidden border border-slate-200 relative group">
-                                        <img :src="mod.bgImage" class="w-full h-full object-cover">
+                                        <img :src="smartImageUrl(mod.bgImage)" @error="e => onImgError(e, mod.bgImage)" class="w-full h-full object-cover">
                                         <button type="button" @click="mod.bgImage = ''; markDraftDirty()" class="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-rose-500 text-white text-[10px] font-bold">移除背景</button>
                                     </div>
                                 </div>
 
-                                <!-- 标签选择 -->
                                 <div class="mb-3 bg-white p-2.5 rounded-xl border border-slate-200/60">
                                     <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
-                                        <span>🏷️ 勾选卡池标签 (如男主、卡品阶)：</span>
+                                        <span>🏷️ 勾选卡池标签：</span>
                                         <span class="text-[10px] text-slate-400">已选 {{ mod.tags?.length || 0 }} 个</span>
                                     </div>
                                     <div class="flex flex-wrap gap-1.5">
@@ -953,14 +1032,14 @@
                                     </div>
                                 </div>
 
-                                <!-- 3:4 卡面管理区域 -->
+                                <!-- 3:4 卡面编辑区 -->
                                 <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
                                     <div class="flex items-center justify-between pb-2 border-b border-slate-100">
                                         <span class="text-xs font-bold text-slate-700">🎴 收集卡面列表 (共 {{ mod.items?.length || 0 }} 张)：</span>
                                         <div class="flex gap-2">
                                             <label class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition cursor-pointer">
                                                 + 批量上传卡面
-                                                <input type="file" multiple accept="image/*" @change="e => handleBatchCardUpload(e, mod)" class="hidden">
+                                                <input type="file" multiple accept="image/*" @click="e => e.target.value = ''" @change="e => handleBatchCardUpload(e, mod)" class="hidden">
                                             </label>
                                             <button type="button" @click="addSingleCard(mod)" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
                                                 + 添加单卡
@@ -982,12 +1061,11 @@
                                                 ×
                                             </button>
 
-                                            <!-- 卡面图片 (3:4 比例) -->
                                             <div class="aspect-[3/4] w-full rounded-lg border-2 overflow-hidden relative mb-1.5 cursor-pointer"
                                                 :class="card.owned ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200 opacity-60'"
                                                 @click="card.owned = !card.owned; markDraftDirty()"
                                                 title="点击切换勾选状态">
-                                                <img v-if="card.imgUrl" :src="card.imgUrl" loading="lazy" class="w-full h-full object-cover">
+                                                <img v-if="card.imgUrl" :src="smartImageUrl(card.imgUrl)" @error="e => onImgError(e, card.imgUrl)" loading="lazy" class="w-full h-full object-cover">
                                                 <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-xs text-slate-400">无图</div>
                                                 <div class="absolute top-1 left-1 px-1 rounded text-[8px] font-bold text-white shadow-xs"
                                                     :class="card.owned ? 'bg-amber-500' : 'bg-slate-500/80'">
@@ -997,10 +1075,26 @@
 
                                             <label class="text-[9px] text-dream-purple hover:underline cursor-pointer mb-1 text-center">
                                                 更换卡面
-                                                <input type="file" accept="image/*" @change="e => handleSingleItemImage(e, card)" class="hidden">
+                                                <input type="file" 
+                                                    accept="image/*" 
+                                                    @click="e => e.target.value = ''"
+                                                    @change="e => handleSingleItemImage(e, card)" 
+                                                    class="hidden">
                                             </label>
 
-                                            <input v-model="card.name" @input="markDraftDirty" type="text" placeholder="输入卡面名称" class="w-full px-1.5 py-1 rounded border border-slate-200 text-xs text-center bg-white outline-none focus:border-amber-500 font-medium">
+                                            <!-- 品阶选择 -->
+                                            <select v-model="card.rarity" @change="markDraftDirty" class="w-full px-1 py-0.5 rounded border border-slate-200 text-[10px] bg-white mb-1 font-bold text-amber-700">
+                                                <option value="">(无品阶)</option>
+                                                <option value="SSR">SSR 勋章</option>
+                                                <option value="MR">MR 勋章</option>
+                                                <option value="世界卡">世界卡</option>
+                                                <option value="SR">SR 勋章</option>
+                                                <option value="SP">SP 勋章</option>
+                                            </select>
+
+                                            <!-- 角色与名称输入 -->
+                                            <input v-model="card.character" @input="markDraftDirty" type="text" placeholder="角色 (如:左然)" class="w-full px-1.5 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-amber-500 font-bold mb-1">
+                                            <input v-model="card.name" @input="markDraftDirty" type="text" placeholder="卡面思绪名" class="w-full px-1.5 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-amber-500">
                                         </div>
                                     </div>
                                     <div v-else class="text-center py-6 text-slate-400 text-xs">暂无卡面，点击上方【+ 批量上传卡面】一键录入！</div>
@@ -1041,12 +1135,12 @@
                                             <span class="text-xs font-bold text-slate-700">👤 人物图库 ({{ mod.charImages?.length || 0 }})</span>
                                             <label class="text-[11px] text-nikki-500 hover:underline cursor-pointer font-bold">
                                                 + 批量传图
-                                                <input type="file" multiple accept="image/*" @change="e => handleMultiImageUpload(e, mod, 'charImages')" class="hidden">
+                                                <input type="file" multiple accept="image/*" @click="e => e.target.value = ''" @change="e => handleMultiImageUpload(e, mod, 'charImages')" class="hidden">
                                             </label>
                                         </div>
                                         <div class="flex flex-col gap-2 max-h-56 overflow-y-auto no-scrollbar">
                                             <div v-for="(img, iIdx) in mod.charImages" :key="img.id" class="flex items-center gap-2 p-1.5 rounded-lg border border-slate-100 bg-slate-50">
-                                                <img :src="img.url" loading="lazy" class="w-12 h-12 rounded object-cover cursor-pointer" @click="previewFullImage(img.url, img.name)">
+                                                <img :src="smartImageUrl(img.url)" @error="e => onImgError(e, img.url)" loading="lazy" class="w-12 h-12 rounded object-cover cursor-pointer" @click="previewFullImage(smartImageUrl(img.url), img.name)">
                                                 <div class="flex-1 min-w-0">
                                                     <input v-model="img.name" @input="markDraftDirty" type="text" placeholder="输入名称(默认为空)" class="w-full px-2 py-0.5 rounded border border-slate-200 text-[11px] bg-white">
                                                 </div>
@@ -1064,12 +1158,12 @@
                                             <span class="text-xs font-bold text-slate-700">🎬 剧情图库 ({{ mod.sceneImages?.length || 0 }})</span>
                                             <label class="text-[11px] text-dream-purple hover:underline cursor-pointer font-bold">
                                                 + 批量传图
-                                                <input type="file" multiple accept="image/*" @change="e => handleMultiImageUpload(e, mod, 'sceneImages')" class="hidden">
+                                                <input type="file" multiple accept="image/*" @click="e => e.target.value = ''" @change="e => handleMultiImageUpload(e, mod, 'sceneImages')" class="hidden">
                                             </label>
                                         </div>
                                         <div class="flex flex-col gap-2 max-h-56 overflow-y-auto no-scrollbar">
                                             <div v-for="(img, iIdx) in mod.sceneImages" :key="img.id" class="flex items-center gap-2 p-1.5 rounded-lg border border-slate-100 bg-slate-50">
-                                                <img :src="img.url" loading="lazy" class="w-16 h-12 rounded object-cover cursor-pointer" @click="previewFullImage(img.url, img.name)">
+                                                <img :src="smartImageUrl(img.url)" @error="e => onImgError(e, img.url)" loading="lazy" class="w-16 h-12 rounded object-cover cursor-pointer" @click="previewFullImage(smartImageUrl(img.url), img.name)">
                                                 <div class="flex-1 min-w-0">
                                                     <input v-model="img.name" @input="markDraftDirty" type="text" placeholder="输入名称(默认为空)" class="w-full px-2 py-0.5 rounded border border-slate-200 text-[11px] bg-white">
                                                 </div>
@@ -1117,7 +1211,7 @@
             </div>
 
             <div class="w-full h-64 bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center relative">
-                <img id="cropTargetImage" :src="editingImgObj?.url" class="max-h-full max-w-full object-contain">
+                <img id="cropTargetImage" :src="smartImageUrl(editingImgObj?.url)" class="max-h-full max-w-full object-contain">
             </div>
 
             <div class="flex justify-end gap-2 mt-5">
@@ -1129,7 +1223,7 @@
 
     <!-- ================= 弹窗 6：全屏大图预览 ================= -->
     <div v-if="modals.preview" @click="modals.preview = false" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-zoom-out">
-        <img :src="previewData.url" class="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl">
+        <img :src="smartImageUrl(previewData.url)" @error="e => onImgError(e, previewData.url)" class="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl">
         <div v-if="previewData.name" class="mt-4 text-white text-sm font-bold bg-white/20 backdrop-blur px-4 py-1 rounded-full">
             {{ previewData.name }}
         </div>
@@ -1157,7 +1251,6 @@
                 <span>{{ syncStatusText }}</span>
             </div>
 
-            <!-- 本地离线物理备份 -->
             <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                 <span class="text-xs text-slate-500 font-bold">本地物理备份：</span>
                 <div class="flex gap-2">
@@ -1227,32 +1320,73 @@ const IDB = {
     }
 };
 
+// 智能 CDN 映射：将国内受阻的 raw.githubusercontent.com 自动无感转为 jsDelivr 全球加速
+function smartImageUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('data:') || url.startsWith('blob:') || !url.includes('raw.githubusercontent.com')) {
+        return url;
+    }
+    const match = url.match(/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)/);
+    if (match) {
+        const [_, user, repo, branch, path] = match;
+        return `https://cdn.jsdelivr.net/gh/${user}/${repo}@${branch}/${path}`;
+    }
+    return url;
+}
+
+// 图片加载失败自动重试/备用源降级切换
+function onImgError(e, originalUrl) {
+    const img = e.target;
+    if (img.dataset.hasRetried) return;
+    img.dataset.hasRetried = 'true';
+    if (img.src.includes('cdn.jsdelivr.net')) {
+        img.src = originalUrl; // 降级回退原始 Raw 源
+    } else {
+        img.src = smartImageUrl(originalUrl); // 切换加速 CDN 源
+    }
+}
+
 function compressImage(file, maxDimension = 1200, quality = 0.8) {
     return new Promise((resolve) => {
+        if (!file || !file.type || !file.type.startsWith('image/')) {
+            return resolve('');
+        }
         const reader = new FileReader();
         reader.onload = (e) => {
+            const dataUrl = e.target.result;
             const img = new Image();
             img.onload = () => {
-                let w = img.width;
-                let h = img.height;
-                if (w > maxDimension || h > maxDimension) {
-                    if (w > h) {
-                        h = Math.round((h * maxDimension) / w);
-                        w = maxDimension;
-                    } else {
-                        w = Math.round((w * maxDimension) / h);
-                        h = maxDimension;
+                try {
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxDimension || h > maxDimension) {
+                        if (w > h) {
+                            h = Math.round((h * maxDimension) / w);
+                            w = maxDimension;
+                        } else {
+                            w = Math.round((w * maxDimension) / h);
+                            h = maxDimension;
+                        }
                     }
+                    w = Math.max(1, Math.min(w, 2048));
+                    h = Math.max(1, Math.min(h, 2048));
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const result = canvas.toDataURL('image/jpeg', quality);
+                    resolve(result || dataUrl);
+                } catch (err) {
+                    console.warn('Canvas 压缩异常，降级原图:', err);
+                    resolve(dataUrl);
                 }
-                const canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', quality));
             };
-            img.src = e.target.result;
+            img.onerror = () => resolve(dataUrl);
+            img.src = dataUrl;
         };
+        reader.onerror = () => resolve('');
         reader.readAsDataURL(file);
     });
 }
@@ -1270,6 +1404,35 @@ function jsonToBase64(obj) {
         reader.onerror = reject;
         reader.readAsDataURL(blob);
     });
+}
+
+function parseDateNum(d) {
+    if (!d) return 0;
+    const clean = String(d).trim().replace(/[./]/g, '-');
+    const time = Date.parse(clean);
+    if (!isNaN(time)) return time;
+    const match = clean.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (match) {
+        return new Date(match[1], match[2] - 1, match[3]).getTime();
+    }
+    return 0;
+}
+
+async function runConcurrent(tasks, limit = 3, onProgress) {
+    let index = 0;
+    let completed = 0;
+    const total = tasks.length;
+    if (total === 0) return;
+    async function worker() {
+        while (index < tasks.length) {
+            const currentIndex = index++;
+            await tasks[currentIndex]();
+            completed++;
+            if (onProgress) onProgress(completed, total);
+        }
+    }
+    const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
+    await Promise.all(workers);
 }
 
 createApp({
@@ -1303,6 +1466,8 @@ createApp({
         const searchQuery = ref('');
         const filterSource = ref('all');
         const filterStatus = ref('all');
+        const filterCharacter = ref('all');
+        const filterRarity = ref('all');
 
         const modals = ref({
             addGame: false,
@@ -1321,6 +1486,8 @@ createApp({
         });
 
         const formGame = ref({ id: '', name: '', type: 'suit', cover: '' });
+        const isUploadingCover = ref(false);
+
         const formAct = ref({ id: '', title: '', startDate: '', endDate: '', bannerUrl: '', note: '', modules: [] });
         const syncConfig = ref({
             token: localStorage.getItem('gh_token') || '',
@@ -1351,7 +1518,7 @@ createApp({
 
         const currentBackgroundUrl = computed(() => {
             if (currentView.value === 'home') return '';
-            const curActs = activities.value[activeGame.value?.id] || [];
+            const curActs = currentActivities.value;
             if (curActs.length > 0 && curActs[0].bannerUrl) {
                 return curActs[0].bannerUrl;
             }
@@ -1360,7 +1527,39 @@ createApp({
 
         const currentActivities = computed(() => {
             if (!activeGame.value) return [];
-            return activities.value[activeGame.value.id] || [];
+            const list = activities.value[activeGame.value.id] || [];
+            return [...list].sort((a, b) => {
+                const timeA = parseDateNum(a.startDate || a.endDate);
+                const timeB = parseDateNum(b.startDate || b.endDate);
+                if (timeA !== timeB) return timeB - timeA;
+                return String(b.id || '').localeCompare(String(a.id || ''));
+            });
+        });
+
+        // 核心提取：动态计算该游戏包含的所有历史年份（用于年份电梯锚点）
+        const availableYears = computed(() => {
+            if (!activeGame.value) return [];
+            const set = new Set();
+            currentActivities.value.forEach(a => {
+                const y = (a.startDate || '').slice(0, 4);
+                if (y && /^\d{4}$/.test(y)) set.add(y);
+            });
+            return Array.from(set).sort((a, b) => b - a); // 2025, 2024 倒序
+        });
+
+        const availableCharacters = computed(() => {
+            if (!activeGame.value || activeGame.value.type !== 'card') return [];
+            const set = new Set();
+            currentActivities.value.forEach(act => {
+                (act.modules || []).forEach(m => {
+                    (m.items || []).forEach(card => {
+                        if (card.character && card.character.trim()) {
+                            set.add(card.character.trim());
+                        }
+                    });
+                });
+            });
+            return Array.from(set);
         });
 
         const filteredActivities = computed(() => {
@@ -1369,7 +1568,8 @@ createApp({
                     const q = searchQuery.value.trim().toLowerCase();
                     const matchTitle = (act.title || '').toLowerCase().includes(q);
                     const matchSuit = (act.modules || []).some(m => (m.suitName || m.title || '').toLowerCase().includes(q));
-                    if (!matchTitle && !matchSuit) return false;
+                    const matchCard = (act.modules || []).some(m => (m.items || []).some(i => (i.name || '').toLowerCase().includes(q) || (i.character || '').toLowerCase().includes(q)));
+                    if (!matchTitle && !matchSuit && !matchCard) return false;
                 }
                 if (filterSource.value !== 'all') {
                     const hasSource = (act.modules || []).some(m => m.source === filterSource.value);
@@ -1380,6 +1580,14 @@ createApp({
                     const isCompleted = stats.total > 0 && stats.owned === stats.total;
                     if (filterStatus.value === 'completed' && !isCompleted) return false;
                     if (filterStatus.value === 'inProgress' && isCompleted) return false;
+                }
+                if (filterCharacter.value !== 'all') {
+                    const hasChar = (act.modules || []).some(m => (m.items || []).some(i => i.character === filterCharacter.value));
+                    if (!hasChar) return false;
+                }
+                if (filterRarity.value !== 'all') {
+                    const hasRarity = (act.modules || []).some(m => (m.items || []).some(i => i.rarity === filterRarity.value));
+                    if (!hasRarity) return false;
                 }
                 return true;
             });
@@ -1454,6 +1662,24 @@ createApp({
             return { pulls, owned, total };
         }
 
+        function getRarityBadgeClass(r) {
+            if (!r) return '';
+            const val = r.toUpperCase();
+            if (val.includes('SSR') || val.includes('世界')) {
+                return 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 shadow-md ring-1 ring-white/50';
+            }
+            if (val.includes('MR')) {
+                return 'bg-gradient-to-r from-rose-600 to-pink-500 shadow-sm';
+            }
+            if (val.includes('SR')) {
+                return 'bg-gradient-to-r from-purple-600 to-indigo-500 shadow-sm';
+            }
+            if (val.includes('SP')) {
+                return 'bg-gradient-to-r from-teal-500 to-cyan-500 shadow-sm';
+            }
+            return 'bg-slate-700/80';
+        }
+
         async function persistLocal() {
             await IDB.set('app_games', JSON.parse(JSON.stringify(games.value)));
             await IDB.set('app_activities', JSON.parse(JSON.stringify(activities.value)));
@@ -1469,6 +1695,8 @@ createApp({
         function selectGame(game) {
             activeGame.value = game;
             currentView.value = 'detail';
+            filterCharacter.value = 'all';
+            filterRarity.value = 'all';
             refreshIcons();
         }
 
@@ -1494,13 +1722,30 @@ createApp({
             }
         }
 
+        // 年份电梯平滑滚动直达
+        function scrollToYear(year) {
+            const targetAct = currentActivities.value.find(a => (a.startDate || '').startsWith(year));
+            if (targetAct) {
+                const el = document.getElementById(`verCard-${targetAct.id}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('highlight-focus-pulse');
+                    setTimeout(() => el.classList.remove('highlight-focus-pulse'), 1500);
+                }
+            }
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         function handlePressStart(item, mod) {
             isLongPressTriggered = false;
             if (longPressTimer) clearTimeout(longPressTimer);
             longPressTimer = setTimeout(() => {
                 isLongPressTriggered = true;
                 if (item.imgUrl) {
-                    previewFullImage(item.imgUrl, item.name || `部件 #${item.id}`);
+                    previewFullImage(smartImageUrl(item.imgUrl), `${item.character ? item.character + ' · ' : ''}${item.name || `部件 #${item.id}`}`);
                 }
             }, 500);
         }
@@ -1589,10 +1834,20 @@ createApp({
         }
 
         function addSingleCard(mod) {
-            addSingleItem(mod);
+            if (!mod.items) mod.items = [];
+            const newId = mod.items.length > 0 ? (Math.max(...mod.items.map(i => i.id || 0)) + 1) : 1;
+            mod.items.push({
+                id: newId,
+                name: '',
+                character: '',
+                rarity: 'SSR',
+                owned: false,
+                imgUrl: ''
+            });
+            mod.totalItems = mod.items.length;
+            markDraftDirty();
         }
 
-        // 卡牌模式：批量上传卡面图片
         async function handleBatchCardUpload(e, mod) {
             const files = Array.from(e.target.files);
             if (!files.length) return;
@@ -1604,6 +1859,8 @@ createApp({
                 mod.items.push({
                     id: newId,
                     name: baseName || '',
+                    character: '',
+                    rarity: 'SSR',
                     owned: false,
                     imgUrl: compressedUrl
                 });
@@ -1612,7 +1869,6 @@ createApp({
             markDraftDirty();
         }
 
-        // 卡牌模式：上传活动/卡池背景图
         async function handleModBgUpload(e, mod) {
             const file = e.target.files[0];
             if (!file) return;
@@ -1635,16 +1891,32 @@ createApp({
         }
 
         async function handleCoverUpload(e) {
-            const file = e.target.files[0];
+            const file = e.target.files && e.target.files[0];
             if (!file) return;
-            formGame.value.cover = await compressImage(file, 800, 0.82);
+            isUploadingCover.value = true;
+            try {
+                const compressed = await compressImage(file, 800, 0.82);
+                if (compressed) {
+                    formGame.value.cover = compressed;
+                }
+            } finally {
+                isUploadingCover.value = false;
+                e.target.value = '';
+            }
         }
 
         async function handleBannerUpload(e) {
-            const file = e.target.files[0];
+            const file = e.target.files && e.target.files[0];
             if (!file) return;
-            formAct.value.bannerUrl = await compressImage(file, 1200, 0.82);
-            markDraftDirty();
+            try {
+                const compressed = await compressImage(file, 1200, 0.82);
+                if (compressed) {
+                    formAct.value.bannerUrl = compressed;
+                    markDraftDirty();
+                }
+            } finally {
+                e.target.value = '';
+            }
         }
 
         function addGlobalTag() {
@@ -1701,6 +1973,11 @@ createApp({
                     g.name = formGame.value.name;
                     g.type = formGame.value.type;
                     if (formGame.value.cover) g.cover = formGame.value.cover;
+                }
+                if (activeGame.value && activeGame.value.id === formGame.value.id) {
+                    activeGame.value.name = formGame.value.name;
+                    activeGame.value.type = formGame.value.type;
+                    if (formGame.value.cover) activeGame.value.cover = formGame.value.cover;
                 }
             } else {
                 const gid = 'g_' + Date.now();
@@ -1774,7 +2051,7 @@ createApp({
                     moduleCategory: 'collection',
                     source: 'cardPool',
                     suitName: '',
-                    bgImage: '', // 卡牌活动专属背景图
+                    bgImage: '',
                     pulls: 0,
                     tags: [],
                     innerNote: '',
@@ -2069,7 +2346,7 @@ createApp({
                 a.href = canvas.toDataURL('image/png');
                 a.click();
             };
-            banner.src = act.bannerUrl || activeGame.value?.cover;
+            banner.src = smartImageUrl(act.bannerUrl || activeGame.value?.cover);
         }
 
         function exportLocalBackup() {
@@ -2147,37 +2424,60 @@ createApp({
             if (!token || !repo) return alert('请填写 GitHub PAT Token 和仓库名称！');
 
             syncLoading.value = true;
-            syncStatusText.value = '正在核对云端状态...';
+            syncStatusText.value = '正在扫描并整理需云端分离的图片资产...';
             localStorage.setItem('gh_token', token);
             localStorage.setItem('gh_repo', repo);
 
             try {
-                syncStatusText.value = '正在优化云端图片资产结构...';
                 const payload = JSON.parse(JSON.stringify({
                     games: games.value,
                     activities: activities.value,
                     gameTags: gameTags.value
                 }));
 
-                for (const g of payload.games) {
-                    if (g.cover && g.cover.startsWith('data:image')) {
-                        const fname = `cover_${g.id}.jpg`;
-                        const cdnUrl = await uploadBase64ToAssets(repo, token, g.cover, fname);
-                        if (cdnUrl) g.cover = cdnUrl;
+                const uploadTasks = [];
+
+                function enqueueUpload(targetObj, propName, prefix) {
+                    const val = targetObj[propName];
+                    if (val && typeof val === 'string' && val.startsWith('data:image')) {
+                        const filename = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}.jpg`;
+                        uploadTasks.push(async () => {
+                            const cdnUrl = await uploadBase64ToAssets(repo, token, val, filename);
+                            if (cdnUrl) targetObj[propName] = cdnUrl;
+                        });
                     }
+                }
+
+                for (const g of payload.games) {
+                    enqueueUpload(g, 'cover', `cover_${g.id}`);
                 }
 
                 for (const gid in payload.activities) {
                     for (const act of payload.activities[gid]) {
-                        if (act.bannerUrl && act.bannerUrl.startsWith('data:image')) {
-                            const fname = `banner_${act.id}.jpg`;
-                            const cdnUrl = await uploadBase64ToAssets(repo, token, act.bannerUrl, fname);
-                            if (cdnUrl) act.bannerUrl = cdnUrl;
+                        enqueueUpload(act, 'bannerUrl', `banner_${act.id}`);
+                        for (const mod of (act.modules || [])) {
+                            enqueueUpload(mod, 'bgImage', `modbg_${mod.moduleId}`);
+                            for (const item of (mod.items || [])) {
+                                enqueueUpload(item, 'imgUrl', `item_${item.id}`);
+                            }
+                            for (const cImg of (mod.charImages || [])) {
+                                enqueueUpload(cImg, 'url', `char_${cImg.id}`);
+                            }
+                            for (const sImg of (mod.sceneImages || [])) {
+                                enqueueUpload(sImg, 'url', `scene_${sImg.id}`);
+                            }
                         }
                     }
                 }
 
-                syncStatusText.value = '正在同步推送主数据包...';
+                if (uploadTasks.length > 0) {
+                    syncStatusText.value = `正在极速并发同步图片资产 (0/${uploadTasks.length})...`;
+                    await runConcurrent(uploadTasks, 3, (done, total) => {
+                        syncStatusText.value = `正在极速并发同步图片资产 (${done}/${total})...`;
+                    });
+                }
+
+                syncStatusText.value = '正在提交瘦身后的轻量主数据包...';
                 const path = 'game_timeline_data.json';
                 const url = `https://api.github.com/repos/${repo}/contents/${path}`;
                 
@@ -2217,7 +2517,7 @@ createApp({
                     activities.value = payload.activities;
                     await persistLocal();
 
-                    alert('🎉 成功推送到 GitHub 仓库！所有设备均已同步最新数据');
+                    alert('🎉 成功推送到 GitHub 仓库！所有图片已安全分离，数据包仅几十KB，多端秒速漫游');
                     modals.value.sync = false;
                 } else {
                     const err = await putRes.json().catch(() => ({}));
@@ -2338,11 +2638,11 @@ createApp({
 
         return {
             currentView, activeGame, games, activities, gameTags, timelineLayout, effectiveLayout, modals,
-            searchQuery, filterSource, filterStatus, filteredActivities,
-            newTagInput, currentGlobalTags, formGame, formAct, syncConfig, syncLoading, syncStatusText, previewData,
+            searchQuery, filterSource, filterStatus, filterCharacter, filterRarity, availableCharacters, availableYears, filteredActivities,
+            newTagInput, currentGlobalTags, formGame, isUploadingCover, formAct, syncConfig, syncLoading, syncStatusText, previewData,
             editingImgObj, currentRatio, cropRatios, currentBackgroundUrl, currentActivities, totalStats, statsDetails,
-            getActivityStats, selectGame, switchView, toggleTimelineLayout, toggleAllExpand, handleHorizontalWheel,
-            handlePressStart, handlePressEnd, handlePressCancel, toggleItemOwned, getSortedItems, batchToggleItems, adjustPulls,
+            getActivityStats, getRarityBadgeClass, smartImageUrl, onImgError, selectGame, switchView, toggleTimelineLayout, toggleAllExpand, handleHorizontalWheel,
+            scrollToYear, scrollToTop, handlePressStart, handlePressEnd, handlePressCancel, toggleItemOwned, getSortedItems, batchToggleItems, adjustPulls,
             onModDragStart, onModDrop, onItemDragStart, onItemDrop, addSingleItem, addSingleCard, removeSingleItem,
             handleSingleItemImage, handleBatchCardUpload, handleModBgUpload, handleCoverUpload, handleBannerUpload,
             handleMultiImageUpload, moveImage, openCropper, setCropRatio, applyCropAndOverwrite,
