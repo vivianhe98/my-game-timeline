@@ -43,7 +43,6 @@
     </script>
 
     <style>
-        /* 动态高清背景层 */
         .bg-dynamic-blur {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -55,7 +54,6 @@
             transition: background-image 0.8s ease-in-out;
         }
 
-        /* 背景微弱暗角遮罩 */
         .bg-vignette-overlay {
             position: fixed;
             inset: 0;
@@ -68,7 +66,6 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* 鱼骨连接斜线 (竖向) */
         .bone-left::before {
             content: ''; position: absolute; top: 28px; right: -28px;
             width: 28px; height: 2px; background: rgba(244, 63, 110, 0.4);
@@ -80,7 +77,6 @@
             transform: rotate(15deg); transform-origin: right;
         }
 
-        /* 鱼骨连接竖线 (横向卷轴) */
         .bone-top::after {
             content: ''; position: absolute; bottom: -24px; left: 50%;
             width: 2px; height: 24px; background: rgba(244, 63, 110, 0.4);
@@ -127,7 +123,6 @@
             100% { background-position: -200% 0; }
         }
 
-        /* 年份电梯卡片聚焦光圈动画 */
         .highlight-focus-pulse {
             box-shadow: 0 0 0 4px #f43f6e, 0 0 30px rgba(244, 63, 110, 0.45) !important;
             transition: box-shadow 0.3s ease;
@@ -188,7 +183,7 @@
         </div>
     </header>
 
-    <!-- 年代/季度快速直达电梯 (Floating Year Elevator) -->
+    <!-- 年代快速直达电梯 -->
     <div v-if="currentView === 'detail' && availableYears.length > 1" 
         class="fixed right-3 md:right-5 bottom-20 z-40 flex flex-col items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-white/80 transition-all select-none">
         <span class="text-[9px] font-black text-slate-400 px-1 py-0.5 tracking-wider">年代</span>
@@ -267,7 +262,7 @@
                             </span>
                         </div>
                         <p class="text-xs text-slate-500 mt-0.5">
-                            {{ activeGame.type === 'suit' ? '💡 提示：按开始时间倒序排列，【单击】立即打卡，【长按 0.5 秒】放大预览部件大图！' : '💡 提示：按开始时间倒序排列，右侧悬浮年代电梯可快速直达历史年份，点击卡面即可打卡！' }}
+                            {{ activeGame.type === 'suit' ? '💡 提示：按开始时间倒序排列，【单击】立即打卡，【长按 0.5 秒】放大预览部件大图！' : '💡 提示：卡面支持横竖屏自由切换，展开卡片可实时查看每个卡池的单独抽数！' }}
                         </p>
                     </div>
                 </div>
@@ -298,7 +293,7 @@
                 <div class="flex items-center gap-2 flex-1 min-w-[240px] flex-wrap">
                     <div class="relative flex-1 min-w-[160px] max-w-xs">
                         <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input v-model="searchQuery" type="text" placeholder="搜索版本名称、套装/卡面、角色..." class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white/90 outline-none focus:border-nikki-500 text-xs">
+                        <input v-model="searchQuery" type="text" placeholder="搜索版本、套装/卡面、角色..." class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white/90 outline-none focus:border-nikki-500 text-xs">
                     </div>
                     <select v-model="filterSource" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white/90 outline-none">
                         <option value="all">全部来源</option>
@@ -310,15 +305,6 @@
                     <select v-if="activeGame.type === 'card' && availableCharacters.length" v-model="filterCharacter" class="px-2.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50/50 text-amber-800 font-bold outline-none">
                         <option value="all">全部角色</option>
                         <option v-for="c in availableCharacters" :key="c" :value="c">{{ c }}</option>
-                    </select>
-
-                    <select v-if="activeGame.type === 'card'" v-model="filterRarity" class="px-2.5 py-1.5 rounded-xl border border-purple-300 bg-purple-50/50 text-purple-800 font-bold outline-none">
-                        <option value="all">全部品阶</option>
-                        <option value="SSR">SSR 勋章</option>
-                        <option value="MR">MR 勋章</option>
-                        <option value="世界卡">世界卡</option>
-                        <option value="SR">SR 勋章</option>
-                        <option value="SP">SP 勋章</option>
                     </select>
 
                     <select v-model="filterStatus" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white/90 outline-none">
@@ -378,8 +364,8 @@
 
                                 <div class="p-4 bg-white/95">
                                     <div class="flex items-center justify-between text-xs font-semibold text-slate-600 mb-3">
-                                        <span>投入抽数：<strong class="text-nikki-500 font-black">{{ getActivityStats(act).pulls }} 抽</strong></span>
-                                        <span>收集：<strong class="text-emerald-600 font-black">{{ getActivityStats(act).owned }} / {{ getActivityStats(act).total }}</strong></span>
+                                        <span>总投入抽数：<strong class="text-nikki-500 font-black">{{ getActivityStats(act).pulls }} 抽</strong></span>
+                                        <span>总收集：<strong class="text-emerald-600 font-black">{{ getActivityStats(act).owned }} / {{ getActivityStats(act).total }}</strong></span>
                                         <div class="flex items-center gap-2">
                                             <button @click="generatePoster(act)" class="text-amber-500 hover:underline text-[11px] flex items-center gap-0.5">
                                                 <i data-lucide="image" class="w-3 h-3"></i>海报
@@ -394,7 +380,7 @@
                                             <div class="pt-3 border-t border-slate-100 flex flex-col gap-3">
                                                 <div v-for="mod in act.modules" :key="mod.moduleId" class="bg-slate-50/90 rounded-2xl border border-slate-200/70 overflow-hidden">
                                                     
-                                                    <!-- 【模式 A：换装游戏-收集子模块】 -->
+                                                    <!-- 【模式 A：换装游戏-收集子模块（支持单子模块抽数显示）】 -->
                                                     <template v-if="mod.moduleCategory === 'collection' && activeGame.type === 'suit'">
                                                         <div class="p-3">
                                                             <div class="flex items-center justify-between mb-2">
@@ -408,10 +394,14 @@
                                                                         {{ mod.source === 'cardPool' ? '卡池' : (mod.source === 'topUp' ? '累充' : '免费') }}
                                                                     </span>
                                                                     <span class="text-xs font-bold text-slate-800">{{ mod.suitName || '未命名套装' }}</span>
+                                                                    <!-- 单子模块抽数高亮显示 -->
+                                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-pink-50 text-nikki-500 border border-pink-100">
+                                                                        {{ mod.pulls || 0 }} 抽
+                                                                    </span>
                                                                 </div>
                                                                 
                                                                 <div class="flex items-center gap-1.5">
-                                                                    <span class="text-[10px] font-bold text-slate-400 mr-1">{{ mod.collectedItems || 0 }} / {{ mod.totalItems || 0 }}</span>
+                                                                    <span class="text-[10px] font-bold text-slate-400 mr-1">{{ mod.collectedItems || 0 }} / {{ mod.totalItems || 0 }} 件</span>
                                                                     <button @click="batchToggleItems(mod, true)" class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold text-[10px] transition">全齐</button>
                                                                     <button @click="batchToggleItems(mod, false)" class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 text-[10px] transition">重置</button>
                                                                 </div>
@@ -452,8 +442,9 @@
                                                         </div>
                                                     </template>
 
-                                                    <!-- 【模式 B：乙游卡牌-收集子模块】 -->
+                                                    <!-- 【模式 B：乙游卡牌模式（支持单个卡池抽数展示、横竖版一键切换）】 -->
                                                     <template v-else-if="mod.moduleCategory === 'collection' && activeGame.type === 'card'">
+                                                        <!-- 卡池背景图横幅 -->
                                                         <div v-if="mod.bgImage" class="h-28 w-full relative overflow-hidden bg-slate-900 skeleton-shimmer">
                                                             <img :src="smartImageUrl(mod.bgImage)" @error="e => onImgError(e, mod.bgImage)" loading="lazy" class="w-full h-full object-cover opacity-90">
                                                             <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent flex items-end p-3">
@@ -473,6 +464,19 @@
                                                                         {{ mod.source === 'cardPool' ? '卡池' : (mod.source === 'topUp' ? '累充' : '免费') }}
                                                                     </span>
                                                                     <span class="text-xs font-bold text-slate-800">{{ mod.suitName || '未命名卡池/活动' }}</span>
+                                                                    
+                                                                    <!-- 单卡池抽数高亮显示 -->
+                                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200">
+                                                                        {{ mod.pulls || 0 }} 抽
+                                                                    </span>
+
+                                                                    <!-- 横屏/竖屏卡面一键切换按钮 -->
+                                                                    <button @click="toggleCardOrientation(mod)" 
+                                                                        class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1 transition"
+                                                                        :title="mod.cardOrientation === 'horizontal' ? '当前横屏，点击切为竖屏' : '当前竖屏，点击切为横屏'">
+                                                                        <i :data-lucide="mod.cardOrientation === 'horizontal' ? 'layout-grid' : 'rectangle-horizontal'" class="w-3 h-3"></i>
+                                                                        {{ mod.cardOrientation === 'horizontal' ? '横版卡面' : '竖版卡面' }}
+                                                                    </button>
                                                                 </div>
                                                                 
                                                                 <div class="flex items-center gap-1.5">
@@ -486,41 +490,41 @@
                                                                 <span v-for="t in mod.tags" :key="t" class="px-1.5 py-0.5 rounded-full text-[9px] bg-dream-purple/10 text-dream-purple font-medium">#{{ t }}</span>
                                                             </div>
 
-                                                            <!-- 精美 3:4 竖版卡面陈列 -->
-                                                            <div v-if="mod.items && mod.items.length" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2.5 my-2">
+                                                            <!-- 精美一体化卡面陈列（无品阶干扰，支持横版 16:9 / 竖版 3:4 切换） -->
+                                                            <div v-if="mod.items && mod.items.length" class="flex flex-wrap gap-3 my-2">
                                                                 <div v-for="card in getSortedItems(mod)" :key="card.id"
                                                                     @click="toggleItemOwned(card, mod)"
-                                                                    class="flex flex-col rounded-xl overflow-hidden border-2 cursor-pointer transition-all duration-200 relative group bg-white shadow-xs select-none"
-                                                                    :class="card.owned ? 'border-amber-400 ring-2 ring-amber-100 shadow-gold' : 'border-slate-200 opacity-60 hover:opacity-85'">
+                                                                    class="rounded-xl overflow-hidden cursor-pointer transition-all duration-300 relative group bg-slate-900 select-none shadow-md hover:shadow-xl hover:-translate-y-0.5"
+                                                                    :class="[
+                                                                        mod.cardOrientation === 'horizontal' ? 'w-48 sm:w-56 aspect-[16/9]' : 'w-28 sm:w-32 aspect-[3/4]',
+                                                                        card.owned ? 'ring-2 ring-amber-400 shadow-gold opacity-100' : 'opacity-40 grayscale-[40%] hover:opacity-75'
+                                                                    ]">
                                                                     
-                                                                    <div class="aspect-[3/4] w-full relative bg-slate-100 overflow-hidden skeleton-shimmer">
-                                                                        <img v-if="card.imgUrl" :src="smartImageUrl(card.imgUrl)" @error="e => onImgError(e, card.imgUrl)" loading="lazy" class="w-full h-full object-cover pointer-events-none">
-                                                                        <div v-else class="w-full h-full flex items-center justify-center text-xs text-slate-400">无图</div>
-                                                                        
-                                                                        <div v-if="card.rarity" class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider text-white shadow-sm"
-                                                                            :class="getRarityBadgeClass(card.rarity)">
-                                                                            {{ card.rarity }}
-                                                                        </div>
-
-                                                                        <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white shadow-sm"
-                                                                            :class="card.owned ? 'bg-amber-500' : 'bg-slate-500/70 backdrop-blur'">
-                                                                            {{ card.owned ? '✓' : '未得' }}
-                                                                        </div>
-
-                                                                        <button v-if="card.imgUrl" @click.stop="previewFullImage(smartImageUrl(card.imgUrl), `${card.character ? card.character + ' · ' : ''}${card.name || '卡面'}`)" 
-                                                                            class="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                                                                            <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
-                                                                        </button>
+                                                                    <!-- 卡面立绘 -->
+                                                                    <img v-if="card.imgUrl" :src="smartImageUrl(card.imgUrl)" @error="e => onImgError(e, card.imgUrl)" loading="lazy" class="w-full h-full object-cover pointer-events-none">
+                                                                    <div v-else class="w-full h-full flex items-center justify-center text-xs text-slate-400">无图</div>
+                                                                    
+                                                                    <!-- 收集状态勾选角标 -->
+                                                                    <div class="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-md transition"
+                                                                        :class="card.owned ? 'bg-amber-500 scale-105' : 'bg-black/40 backdrop-blur border border-white/40'">
+                                                                        {{ card.owned ? '✓' : '' }}
                                                                     </div>
 
-                                                                    <div class="p-1.5 text-center bg-slate-50 border-t border-slate-100">
-                                                                        <div v-if="card.character" class="text-[10px] font-black text-amber-600 truncate mb-0.5">
+                                                                    <!-- 底部一体化磨砂渐变文字浮层（角色+卡名） -->
+                                                                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 text-white">
+                                                                        <div v-if="card.character" class="text-[10px] font-black text-amber-300 tracking-wide truncate">
                                                                             {{ card.character }}
                                                                         </div>
-                                                                        <div class="text-xs font-bold text-slate-700 truncate">
+                                                                        <div class="text-xs font-bold truncate drop-shadow-sm">
                                                                             {{ card.name || '未命名卡面' }}
                                                                         </div>
                                                                     </div>
+
+                                                                    <!-- 放大赏卡按钮 -->
+                                                                    <button v-if="card.imgUrl" @click.stop="previewFullImage(smartImageUrl(card.imgUrl), `${card.character ? card.character + ' · ' : ''}${card.name || '卡面'}`)" 
+                                                                        class="absolute top-2 left-2 w-6 h-6 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow">
+                                                                        <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+                                                                    </button>
                                                                 </div>
                                                             </div>
 
@@ -781,7 +785,7 @@
         </div>
     </div>
 
-    <!-- ================= 弹窗 4：大活动编辑/新增 ================= -->
+    <!-- ================= 弹窗 4：大活动编辑/新增 (支持卡面横竖版预设) ================= -->
     <div v-if="modals.editActivity" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-white max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
@@ -842,7 +846,7 @@
                             @drop="onModDrop(mIdx)"
                             class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 transition shadow-xs">
                             
-                            <!-- 【A：换装模式下的收集模块编辑（暖暖）】 -->
+                            <!-- 【A：换装模式编辑（暖暖）】 -->
                             <template v-if="mod.moduleCategory === 'collection' && activeGame.type === 'suit'">
                                 <div class="flex items-center justify-between mb-3">
                                     <div class="flex items-center gap-2 flex-wrap">
@@ -862,7 +866,7 @@
                                     </div>
                                     
                                     <div class="flex items-center gap-1.5">
-                                        <label class="text-xs text-slate-500">抽数:</label>
+                                        <label class="text-xs text-slate-500">单套抽数:</label>
                                         <button type="button" @click="adjustPulls(mod, -10)" class="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">-10</button>
                                         <button type="button" @click="adjustPulls(mod, -1)" class="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">-1</button>
                                         <input v-model.number="mod.pulls" @input="markDraftDirty" type="number" min="0" class="w-14 px-1.5 py-1 rounded-lg border border-slate-200 text-xs bg-white text-center font-bold">
@@ -974,7 +978,7 @@
                                 </div>
                             </template>
 
-                            <!-- 【B：乙游卡牌模式编辑】 -->
+                            <!-- 【B：乙游卡牌模式编辑（横竖排版设置、角色设置、单卡池抽数）】 -->
                             <template v-else-if="mod.moduleCategory === 'collection' && activeGame.type === 'card'">
                                 <div class="flex items-center justify-between mb-3">
                                     <div class="flex items-center gap-2 flex-wrap">
@@ -994,7 +998,7 @@
                                     </div>
                                     
                                     <div class="flex items-center gap-1.5">
-                                        <label class="text-xs text-slate-500">抽数:</label>
+                                        <label class="text-xs text-slate-500">单卡池抽数:</label>
                                         <button type="button" @click="adjustPulls(mod, -10)" class="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">-10</button>
                                         <button type="button" @click="adjustPulls(mod, -1)" class="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">-1</button>
                                         <input v-model.number="mod.pulls" @input="markDraftDirty" type="number" min="0" class="w-14 px-1.5 py-1 rounded-lg border border-slate-200 text-xs bg-white text-center font-bold">
@@ -1004,16 +1008,28 @@
                                     </div>
                                 </div>
 
-                                <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
-                                    <label class="block text-xs font-bold text-slate-700 mb-1.5">🌄 卡池活动背景图（将作为卡池横幅）</label>
-                                    <input type="file" 
-                                        accept="image/*" 
-                                        @click="e => e.target.value = ''"
-                                        @change="e => handleModBgUpload(e, mod)" 
-                                        class="text-xs text-slate-500 mb-2 cursor-pointer">
-                                    <div v-if="mod.bgImage" class="h-20 w-full rounded-lg overflow-hidden border border-slate-200 relative group">
-                                        <img :src="smartImageUrl(mod.bgImage)" @error="e => onImgError(e, mod.bgImage)" class="w-full h-full object-cover">
-                                        <button type="button" @click="mod.bgImage = ''; markDraftDirty()" class="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-rose-500 text-white text-[10px] font-bold">移除背景</button>
+                                <!-- 卡池背景图与排版方向切换 -->
+                                <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3 flex flex-wrap items-center justify-between gap-2">
+                                    <div class="flex-1 min-w-[200px]">
+                                        <label class="block text-xs font-bold text-slate-700 mb-1">🌄 卡池活动背景图（可选）</label>
+                                        <input type="file" 
+                                            accept="image/*" 
+                                            @click="e => e.target.value = ''"
+                                            @change="e => handleModBgUpload(e, mod)" 
+                                            class="text-xs text-slate-500 cursor-pointer">
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-bold text-slate-500">卡面画幅比例:</span>
+                                        <button type="button" @click="mod.cardOrientation = 'vertical'; markDraftDirty()" 
+                                            class="px-2.5 py-1 rounded-lg text-xs font-bold border transition"
+                                            :class="mod.cardOrientation !== 'horizontal' ? 'bg-amber-500 text-white border-amber-500' : 'bg-slate-100 text-slate-600'">
+                                            竖版 (3:4)
+                                        </button>
+                                        <button type="button" @click="mod.cardOrientation = 'horizontal'; markDraftDirty()" 
+                                            class="px-2.5 py-1 rounded-lg text-xs font-bold border transition"
+                                            :class="mod.cardOrientation === 'horizontal' ? 'bg-amber-500 text-white border-amber-500' : 'bg-slate-100 text-slate-600'">
+                                            横版 (16:9)
+                                        </button>
                                     </div>
                                 </div>
 
@@ -1032,10 +1048,10 @@
                                     </div>
                                 </div>
 
-                                <!-- 3:4 卡面编辑区 -->
+                                <!-- 3:4 卡面编辑区（无品阶干扰，纯净排版） -->
                                 <div class="bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
                                     <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-                                        <span class="text-xs font-bold text-slate-700">🎴 收集卡面列表 (共 {{ mod.items?.length || 0 }} 张)：</span>
+                                        <span class="text-xs font-bold text-slate-700">🎴 卡面列表 (共 {{ mod.items?.length || 0 }} 张)：</span>
                                         <div class="flex gap-2">
                                             <label class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition cursor-pointer">
                                                 + 批量上传卡面
@@ -1061,15 +1077,19 @@
                                                 ×
                                             </button>
 
-                                            <div class="aspect-[3/4] w-full rounded-lg border-2 overflow-hidden relative mb-1.5 cursor-pointer"
-                                                :class="card.owned ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200 opacity-60'"
+                                            <!-- 缩略图 -->
+                                            <div class="w-full rounded-lg border-2 overflow-hidden relative mb-1.5 cursor-pointer"
+                                                :class="[
+                                                    mod.cardOrientation === 'horizontal' ? 'aspect-[16/9]' : 'aspect-[3/4]',
+                                                    card.owned ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200 opacity-60'
+                                                ]"
                                                 @click="card.owned = !card.owned; markDraftDirty()"
                                                 title="点击切换勾选状态">
                                                 <img v-if="card.imgUrl" :src="smartImageUrl(card.imgUrl)" @error="e => onImgError(e, card.imgUrl)" loading="lazy" class="w-full h-full object-cover">
                                                 <div v-else class="w-full h-full bg-slate-200 flex items-center justify-center text-xs text-slate-400">无图</div>
                                                 <div class="absolute top-1 left-1 px-1 rounded text-[8px] font-bold text-white shadow-xs"
                                                     :class="card.owned ? 'bg-amber-500' : 'bg-slate-500/80'">
-                                                    {{ card.owned ? '已收集' : '未拥有' }}
+                                                    {{ card.owned ? '已拥有' : '未拥有' }}
                                                 </div>
                                             </div>
 
@@ -1082,18 +1102,7 @@
                                                     class="hidden">
                                             </label>
 
-                                            <!-- 品阶选择 -->
-                                            <select v-model="card.rarity" @change="markDraftDirty" class="w-full px-1 py-0.5 rounded border border-slate-200 text-[10px] bg-white mb-1 font-bold text-amber-700">
-                                                <option value="">(无品阶)</option>
-                                                <option value="SSR">SSR 勋章</option>
-                                                <option value="MR">MR 勋章</option>
-                                                <option value="世界卡">世界卡</option>
-                                                <option value="SR">SR 勋章</option>
-                                                <option value="SP">SP 勋章</option>
-                                            </select>
-
-                                            <!-- 角色与名称输入 -->
-                                            <input v-model="card.character" @input="markDraftDirty" type="text" placeholder="角色 (如:左然)" class="w-full px-1.5 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-amber-500 font-bold mb-1">
+                                            <input v-model="card.character" @input="markDraftDirty" type="text" placeholder="角色 (如:左然/黑哨)" class="w-full px-1.5 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-amber-500 font-bold mb-1">
                                             <input v-model="card.name" @input="markDraftDirty" type="text" placeholder="卡面思绪名" class="w-full px-1.5 py-0.5 rounded border border-slate-200 text-[10px] text-center bg-white outline-none focus:border-amber-500">
                                         </div>
                                     </div>
@@ -1320,7 +1329,6 @@ const IDB = {
     }
 };
 
-// 智能 CDN 映射：将国内受阻的 raw.githubusercontent.com 自动无感转为 jsDelivr 全球加速
 function smartImageUrl(url) {
     if (!url) return '';
     if (url.startsWith('data:') || url.startsWith('blob:') || !url.includes('raw.githubusercontent.com')) {
@@ -1334,15 +1342,14 @@ function smartImageUrl(url) {
     return url;
 }
 
-// 图片加载失败自动重试/备用源降级切换
 function onImgError(e, originalUrl) {
     const img = e.target;
     if (img.dataset.hasRetried) return;
     img.dataset.hasRetried = 'true';
     if (img.src.includes('cdn.jsdelivr.net')) {
-        img.src = originalUrl; // 降级回退原始 Raw 源
+        img.src = originalUrl;
     } else {
-        img.src = smartImageUrl(originalUrl); // 切换加速 CDN 源
+        img.src = smartImageUrl(originalUrl);
     }
 }
 
@@ -1448,7 +1455,7 @@ createApp({
         const defaultTagsMap = {
             'inikki': ['5星限定', '5星奇迹', '5星联动', '清新', '典雅', '甜美', '帅气', '性感', '四星套'],
             'snikki': ['闪耀套', '非凡套', '累充', '复刻阁'],
-            'wd': ['SSR', '生日卡', '活动卡池', '累充MR', '左然', '夏彦', '莫弈', '陆景和'],
+            'wd': ['限定卡池', '生日活动', '累充', '左然', '夏彦', '莫弈', '陆景和'],
             'sjzw': ['世界卡', '无量阁', '密语', '顾时夜', '柏源', '易遇', '夏萧因'],
             'ymzx': ['限定卡面', '主线卡', '充值']
         };
@@ -1467,7 +1474,6 @@ createApp({
         const filterSource = ref('all');
         const filterStatus = ref('all');
         const filterCharacter = ref('all');
-        const filterRarity = ref('all');
 
         const modals = ref({
             addGame: false,
@@ -1536,7 +1542,6 @@ createApp({
             });
         });
 
-        // 核心提取：动态计算该游戏包含的所有历史年份（用于年份电梯锚点）
         const availableYears = computed(() => {
             if (!activeGame.value) return [];
             const set = new Set();
@@ -1544,7 +1549,7 @@ createApp({
                 const y = (a.startDate || '').slice(0, 4);
                 if (y && /^\d{4}$/.test(y)) set.add(y);
             });
-            return Array.from(set).sort((a, b) => b - a); // 2025, 2024 倒序
+            return Array.from(set).sort((a, b) => b - a);
         });
 
         const availableCharacters = computed(() => {
@@ -1584,10 +1589,6 @@ createApp({
                 if (filterCharacter.value !== 'all') {
                     const hasChar = (act.modules || []).some(m => (m.items || []).some(i => i.character === filterCharacter.value));
                     if (!hasChar) return false;
-                }
-                if (filterRarity.value !== 'all') {
-                    const hasRarity = (act.modules || []).some(m => (m.items || []).some(i => i.rarity === filterRarity.value));
-                    if (!hasRarity) return false;
                 }
                 return true;
             });
@@ -1662,24 +1663,6 @@ createApp({
             return { pulls, owned, total };
         }
 
-        function getRarityBadgeClass(r) {
-            if (!r) return '';
-            const val = r.toUpperCase();
-            if (val.includes('SSR') || val.includes('世界')) {
-                return 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 shadow-md ring-1 ring-white/50';
-            }
-            if (val.includes('MR')) {
-                return 'bg-gradient-to-r from-rose-600 to-pink-500 shadow-sm';
-            }
-            if (val.includes('SR')) {
-                return 'bg-gradient-to-r from-purple-600 to-indigo-500 shadow-sm';
-            }
-            if (val.includes('SP')) {
-                return 'bg-gradient-to-r from-teal-500 to-cyan-500 shadow-sm';
-            }
-            return 'bg-slate-700/80';
-        }
-
         async function persistLocal() {
             await IDB.set('app_games', JSON.parse(JSON.stringify(games.value)));
             await IDB.set('app_activities', JSON.parse(JSON.stringify(activities.value)));
@@ -1696,7 +1679,6 @@ createApp({
             activeGame.value = game;
             currentView.value = 'detail';
             filterCharacter.value = 'all';
-            filterRarity.value = 'all';
             refreshIcons();
         }
 
@@ -1722,7 +1704,6 @@ createApp({
             }
         }
 
-        // 年份电梯平滑滚动直达
         function scrollToYear(year) {
             const targetAct = currentActivities.value.find(a => (a.startDate || '').startsWith(year));
             if (targetAct) {
@@ -1771,6 +1752,13 @@ createApp({
             item.owned = !item.owned;
             mod.collectedItems = mod.items.filter(i => i.owned).length;
             persistLocal();
+        }
+
+        // 卡面横竖版一键切换
+        function toggleCardOrientation(mod) {
+            mod.cardOrientation = mod.cardOrientation === 'horizontal' ? 'vertical' : 'horizontal';
+            persistLocal();
+            refreshIcons();
         }
 
         function getSortedItems(mod) {
@@ -1840,7 +1828,6 @@ createApp({
                 id: newId,
                 name: '',
                 character: '',
-                rarity: 'SSR',
                 owned: false,
                 imgUrl: ''
             });
@@ -1860,7 +1847,6 @@ createApp({
                     id: newId,
                     name: baseName || '',
                     character: '',
-                    rarity: 'SSR',
                     owned: false,
                     imgUrl: compressedUrl
                 });
@@ -2052,6 +2038,7 @@ createApp({
                     source: 'cardPool',
                     suitName: '',
                     bgImage: '',
+                    cardOrientation: 'vertical', // 默认竖版
                     pulls: 0,
                     tags: [],
                     innerNote: '',
@@ -2638,11 +2625,12 @@ createApp({
 
         return {
             currentView, activeGame, games, activities, gameTags, timelineLayout, effectiveLayout, modals,
-            searchQuery, filterSource, filterStatus, filterCharacter, filterRarity, availableCharacters, availableYears, filteredActivities,
+            searchQuery, filterSource, filterStatus, filterCharacter, availableCharacters, availableYears, filteredActivities,
             newTagInput, currentGlobalTags, formGame, isUploadingCover, formAct, syncConfig, syncLoading, syncStatusText, previewData,
             editingImgObj, currentRatio, cropRatios, currentBackgroundUrl, currentActivities, totalStats, statsDetails,
-            getActivityStats, getRarityBadgeClass, smartImageUrl, onImgError, selectGame, switchView, toggleTimelineLayout, toggleAllExpand, handleHorizontalWheel,
-            scrollToYear, scrollToTop, handlePressStart, handlePressEnd, handlePressCancel, toggleItemOwned, getSortedItems, batchToggleItems, adjustPulls,
+            getActivityStats, smartImageUrl, onImgError, selectGame, switchView, toggleTimelineLayout, toggleAllExpand, handleHorizontalWheel,
+            scrollToYear, scrollToTop, handlePressStart, handlePressEnd, handlePressCancel, toggleItemOwned, toggleCardOrientation,
+            getSortedItems, batchToggleItems, adjustPulls,
             onModDragStart, onModDrop, onItemDragStart, onItemDrop, addSingleItem, addSingleCard, removeSingleItem,
             handleSingleItemImage, handleBatchCardUpload, handleModBgUpload, handleCoverUpload, handleBannerUpload,
             handleMultiImageUpload, moveImage, openCropper, setCropRatio, applyCropAndOverwrite,
